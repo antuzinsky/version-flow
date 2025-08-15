@@ -314,18 +314,25 @@ const Index: React.FC = () => {
     }
   };
 
-  const createShareLink = async () => {
+  const createShareLink = async (shareType: 'latest_only' | 'all_versions' = 'latest_only') => {
     if (!userId || !selectedDocumentId) return;
     const token = crypto.randomUUID();
     const { error } = await supabase
       .from("shares")
-      .insert({ document_id: selectedDocumentId, token, can_edit: false, created_by: userId });
+      .insert({ 
+        document_id: selectedDocumentId, 
+        token, 
+        can_edit: false, 
+        created_by: userId,
+        share_type: shareType
+      });
     if (error) {
       toast({ title: "Share link failed", description: error.message, variant: "destructive" });
     } else {
       const url = `${window.location.origin}/share/${token}`;
       navigator.clipboard?.writeText(url).catch(() => void 0);
-      toast({ title: "Share link created", description: url });
+      const typeLabel = shareType === 'all_versions' ? 'All Versions' : 'Latest Version';
+      toast({ title: "Share link created", description: `${typeLabel}: ${url}` });
     }
   };
 

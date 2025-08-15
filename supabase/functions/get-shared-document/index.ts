@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
         token,
         can_edit,
         expires_at,
+        share_type,
         documents (
           id,
           title,
@@ -104,6 +105,21 @@ Deno.serve(async (req) => {
       content = 'No file uploaded for this document.';
     }
 
+    // Get version content based on share type
+    let versions = [];
+    const document = shareData.documents;
+
+    if (shareData.share_type === 'all_versions') {
+      // Get all versions for version switching
+      const { data: allVersions } = await supabase
+        .from('document_versions')
+        .select('id, version_number, content, created_at, created_by')
+        .eq('document_id', document.id)
+        .order('created_at', { ascending: false });
+      
+      versions = allVersions || [];
+    }
+
     // Get latest version content as fallback
     const { data: versionData } = await supabase
       .from('document_versions')
@@ -120,6 +136,7 @@ Deno.serve(async (req) => {
         token: shareData.token,
         can_edit: shareData.can_edit,
         expires_at: shareData.expires_at,
+        share_type: shareData.share_type,
       },
       documentData: {
         id: document.id,
@@ -128,7 +145,8 @@ Deno.serve(async (req) => {
         content: finalContent,
         project: document.projects?.name,
         client: document.projects?.clients?.name,
-      }
+      },
+      versions: versions
     };
 
     console.log(`Successfully fetched shared document: ${document.title}`);

@@ -13,6 +13,7 @@ interface ShareData {
     token: string;
     can_edit: boolean;
     expires_at: string | null;
+    share_type: string;
   };
   documentData: {
     id: string;
@@ -22,6 +23,13 @@ interface ShareData {
     project: string;
     client: string;
   };
+  versions: Array<{
+    id: string;
+    version_number: number;
+    content: string;
+    created_at: string;
+    created_by: string;
+  }>;
 }
 
 const Share: React.FC = () => {
@@ -31,6 +39,8 @@ const Share: React.FC = () => {
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [currentContent, setCurrentContent] = useState<string>("");
 
   useEffect(() => {
     document.title = "Shared Document · B2B Docs";
@@ -67,12 +77,29 @@ const Share: React.FC = () => {
       }
 
       setShareData(data);
+      setCurrentContent(data.documentData.content);
     } catch (err) {
       console.error('Fetch error:', err);
       setError('Failed to load shared document');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVersionSelect = (versionId: string) => {
+    if (!shareData) return;
+    
+    const version = shareData.versions.find(v => v.id === versionId);
+    if (version) {
+      setSelectedVersionId(versionId);
+      setCurrentContent(version.content || shareData.documentData.content);
+    }
+  };
+
+  const resetToLatest = () => {
+    if (!shareData) return;
+    setSelectedVersionId(null);
+    setCurrentContent(shareData.documentData.content);
   };
 
   if (loading) {
@@ -108,9 +135,11 @@ const Share: React.FC = () => {
     );
   }
 
-  const { share, documentData } = shareData;
+  const { share, documentData, versions } = shareData;
   const expiresAt = share.expires_at ? new Date(share.expires_at) : null;
   const isExpired = expiresAt && expiresAt < new Date();
+  const showVersions = share.share_type === 'all_versions' && versions.length > 0;
+  const selectedVersion = selectedVersionId ? versions.find(v => v.id === selectedVersionId) : null;
 
   if (isExpired) {
     return (
@@ -145,7 +174,7 @@ const Share: React.FC = () => {
                 <span className="text-lg font-semibold">B2B Docs</span>
               </div>
               <Badge variant="secondary" className="text-xs">
-                Shared Document
+                {share.share_type === 'all_versions' ? 'All Versions' : 'Latest Version'}
               </Badge>
             </div>
             
@@ -187,6 +216,55 @@ const Share: React.FC = () => {
           </div>
         </div>
 
+        {/* Version Selector */}
+        {showVersions && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Version History</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={resetToLatest}
+                  disabled={!selectedVersionId}
+                >
+                  Show Latest
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {versions.map((version) => (
+                  <Button
+                    key={version.id}
+                    variant={selectedVersionId === version.id ? "default" : "outline"}
+                    className="h-auto p-4 text-left flex flex-col items-start"
+                    onClick={() => handleVersionSelect(version.id)}
+                  >
+                    <div className="font-medium">v{version.version_number}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(version.created_at).toLocaleDateString()}
+                    </div>
+                    {selectedVersionId === version.id && (
+                      <Badge variant="secondary" className="mt-2 text-xs">
+                        Current View
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+              {selectedVersion && (
+                <div className="mt-4 p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Viewing:</strong> Version {selectedVersion.version_number} from{' '}
+                    {new Date(selectedVersion.created_at).toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Separator className="mb-8" />
 
         {/* Document Content */}
@@ -199,7 +277,7 @@ const Share: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="prose max-w-none">
-              {documentData.content.includes('[DOCX file') ? (
+              {currentContent.includes('[DOCX file') ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium mb-2">DOCX File Shared</p>
@@ -212,7 +290,7 @@ const Share: React.FC = () => {
                 </div>
               ) : (
                 <div className="whitespace-pre-wrap text-base leading-relaxed">
-                  {documentData.content || "This document appears to be empty."}
+                  {currentContent || "This document appears to be empty."}
                 </div>
               )}
             </div>

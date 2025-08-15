@@ -1,7 +1,8 @@
 import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Bold, Italic, Underline, Type, Share, Save } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Bold, Italic, Underline, Type, Share, Save, ChevronDown } from "lucide-react";
 
 interface DocumentEditorProps {
   document?: any;
@@ -10,7 +11,7 @@ interface DocumentEditorProps {
   onContentChange: (content: string) => void;
   onEditModeToggle: () => void;
   onSave: () => void;
-  onShare: () => void;
+  onShare: (shareType: 'latest_only' | 'all_versions') => void;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -82,14 +83,25 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onShare}
-          >
-            <Share className="h-4 w-4 mr-2" />
-            Share link
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Share className="h-4 w-4 mr-2" />
+                Share
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onShare('latest_only')}>
+                <Share className="h-4 w-4 mr-2" />
+                Share Latest Version
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onShare('all_versions')}>
+                <Share className="h-4 w-4 mr-2" />
+                Share All Versions
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           {editMode ? (
             <Button 
