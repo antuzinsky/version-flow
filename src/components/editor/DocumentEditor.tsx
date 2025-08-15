@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Bold, Italic, Underline, Type, Share, Save } from "lucide-react";
@@ -22,6 +22,44 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onSave,
   onShare,
 }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertFormatting = (before: string, after: string = before) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    
+    const newText = content.substring(0, start) + before + selectedText + after + content.substring(end);
+    onContentChange(newText);
+    
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
+  };
+
+  const handleBold = () => insertFormatting('**', '**');
+  const handleItalic = () => insertFormatting('*', '*');
+  const handleUnderline = () => insertFormatting('<u>', '</u>');
+  const handleHeading = () => insertFormatting('# ', '');
+
+  const insertLineBreak = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const newText = content.substring(0, start) + '\n\n' + content.substring(start);
+    onContentChange(newText);
+    
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + 2, start + 2);
+    }, 0);
+  };
   if (!document) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
@@ -76,19 +114,48 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       {/* Toolbar */}
       {editMode && (
         <div className="border-b border-border p-2 flex items-center gap-1">
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleBold}
+            title="Bold"
+          >
             <Bold className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleItalic}
+            title="Italic"
+          >
             <Italic className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleUnderline}
+            title="Underline"
+          >
             <Underline className="h-4 w-4" />
           </Button>
           <div className="h-6 w-px bg-border mx-2" />
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleHeading}
+            title="Heading"
+          >
             <Type className="h-4 w-4" />
             H1
+          </Button>
+          <div className="h-6 w-px bg-border mx-2" />
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={insertLineBreak}
+            title="Insert line break"
+          >
+            ¶
           </Button>
         </div>
       )}
@@ -97,9 +164,10 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       <div className="flex-1 p-6">
         {editMode ? (
           <Textarea
+            ref={textareaRef}
             value={content}
             onChange={(e) => onContentChange(e.target.value)}
-            className="min-h-[500px] resize-none border-0 shadow-none focus-visible:ring-0 text-base leading-relaxed"
+            className="min-h-[500px] resize-none border-0 shadow-none focus-visible:ring-0 text-base leading-relaxed font-mono"
             placeholder="Click the title to edit. Below are placeholder lines to suggest text blocks."
           />
         ) : (
