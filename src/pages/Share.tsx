@@ -61,26 +61,32 @@ const Share: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      console.log('Fetching shared document with token:', token);
+
       const { data, error: functionError } = await supabase.functions.invoke('get-shared-document', {
         body: { token }
       });
 
+      console.log('Function response:', { data, functionError });
+
       if (functionError) {
         console.error('Function error:', functionError);
-        setError('Failed to load shared document');
+        setError(`Failed to load shared document: ${functionError.message}`);
         return;
       }
 
       if (data.error) {
+        console.error('Data error:', data.error);
         setError(data.error);
         return;
       }
 
+      console.log('Successfully loaded share data:', data);
       setShareData(data);
       setCurrentContent(data.documentData.content);
     } catch (err) {
       console.error('Fetch error:', err);
-      setError('Failed to load shared document');
+      setError(`Failed to load shared document: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
