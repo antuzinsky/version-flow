@@ -8,6 +8,7 @@ import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { DocumentEditor } from "@/components/editor/DocumentEditor";
 import { VersionsPanel } from "@/components/versions/VersionsPanel";
 import { UploadModal } from "@/components/modals/UploadModal";
+import { sanitizeFileName } from "@/lib/utils";
 
 const Index: React.FC = () => {
   const { toast } = useToast();
@@ -179,7 +180,8 @@ const Index: React.FC = () => {
       return;
     }
 
-    const path = `${userId}/${docInsert.id}/${docFile.name}`;
+    const safeName = sanitizeFileName(docFile.name);
+    const path = `${userId}/${docInsert.id}/${safeName}`;
 
     // 2) Upload to storage
     const { error: uploadErr } = await supabase
@@ -195,7 +197,7 @@ const Index: React.FC = () => {
     // 3) Update document with metadata
     const { error: updErr } = await supabase
       .from("documents")
-      .update({ file_path: path, file_name: docFile.name, mime_type: docFile.type, size_bytes: docFile.size })
+      .update({ file_path: path, file_name: safeName, mime_type: docFile.type, size_bytes: docFile.size })
       .eq("id", docInsert.id);
 
     if (updErr) {
