@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import * as mammoth from "mammoth";
+import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
+import { DocumentEditor } from "@/components/editor/DocumentEditor";
+import { VersionsPanel } from "@/components/versions/VersionsPanel";
+import { UploadModal } from "@/components/modals/UploadModal";
 
 const Index: React.FC = () => {
   const { toast } = useToast();
@@ -36,6 +35,9 @@ const Index: React.FC = () => {
   const [currentDocument, setCurrentDocument] = useState<any>(null);
   const [documentContent, setDocumentContent] = useState("");
   const [editMode, setEditMode] = useState(false);
+  
+  // UI states
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   useEffect(() => {
     document.title = "B2B Docs Dashboard · Clients, Projects, Documents";
@@ -354,185 +356,92 @@ const Index: React.FC = () => {
   }
 
   return (
-    <main className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-6xl grid gap-6 md:grid-cols-2">
-        <section>
-          <Card>
-            <CardHeader>
-              <CardTitle>1) Clients</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={createClient} className="flex gap-2">
-                <Input placeholder="Client name" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-                <Button type="submit">Create</Button>
-              </form>
-              <Separator className="my-4" />
-              <Label>Select client</Label>
-              <Select value={selectedClientId} onValueChange={(v) => setSelectedClientId(v)}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Choose a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+    <div className="h-screen flex bg-background">
+      <WorkspacePanel
+        clients={clients}
+        projects={projects}
+        documents={documents}
+        selectedClientId={selectedClientId}
+        selectedProjectId={selectedProjectId}
+        selectedDocumentId={selectedDocumentId}
+        onClientSelect={setSelectedClientId}
+        onProjectSelect={setSelectedProjectId}
+        onDocumentSelect={setSelectedDocumentId}
+        onUploadClick={() => setUploadModalOpen(true)}
+      />
+      
+      <DocumentEditor
+        document={currentDocument}
+        content={documentContent}
+        editMode={editMode}
+        onContentChange={setDocumentContent}
+        onEditModeToggle={() => setEditMode(!editMode)}
+        onSave={saveDocumentEdit}
+        onShare={createShareLink}
+      />
+      
+      <VersionsPanel
+        versions={versions}
+        onRestore={restoreVersion}
+        onRefresh={() => refreshVersions(selectedDocumentId)}
+        selectedDocumentId={selectedDocumentId}
+      />
 
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>2) Projects</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={createProject} className="flex gap-2">
-                <Input placeholder="Project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
-                <Button type="submit" disabled={!selectedClientId}>Create</Button>
-              </form>
-              <Separator className="my-4" />
-              <Label>Select project</Label>
-              <Select value={selectedProjectId} onValueChange={(v) => setSelectedProjectId(v)}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Choose a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
+      <UploadModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        clients={clients}
+        projects={projects}
+        selectedClientId={selectedClientId}
+        selectedProjectId={selectedProjectId}
+        clientName={clientName}
+        projectName={projectName}
+        docTitle={docTitle}
+        docFile={docFile}
+        onClientNameChange={setClientName}
+        onProjectNameChange={setProjectName}
+        onDocTitleChange={setDocTitle}
+        onDocFileChange={setDocFile}
+        onClientSelect={setSelectedClientId}
+        onProjectSelect={setSelectedProjectId}
+        onCreateClient={createClient}
+        onCreateProject={createProject}
+        onUploadDocument={uploadDocument}
+      />
+      
+      {/* Quick test area - can be removed later */}
+      {selectedDocumentId && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Card className="p-4 w-80">
+            <h4 className="font-medium mb-2">Quick Version Test</h4>
+            <form onSubmit={saveVersion} className="space-y-2">
+              <textarea 
+                className="w-full h-20 p-2 border rounded text-sm resize-none"
+                placeholder="Type test content..." 
+                value={versionContent} 
+                onChange={(e) => setVersionContent(e.target.value)} 
+              />
+              <Button 
+                type="submit" 
+                size="sm" 
+                className="w-full"
+                disabled={!selectedDocumentId || !versionContent.trim()}
+              >
+                Save Test Version
+              </Button>
+            </form>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full mt-2"
+              onClick={async () => { await supabase.auth.signOut(); window.location.href = "/auth"; }}
+            >
+              Sign Out
+            </Button>
           </Card>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>3) Upload Document (.doc/.docx)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={uploadDocument} className="space-y-3">
-                <Input placeholder="Document title" value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
-                <Input type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
-                <Button type="submit" disabled={!selectedProjectId || !docFile}>Upload</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section>
-          <Card>
-            <CardHeader>
-              <CardTitle>4) Documents in Project</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {documents.length === 0 ? (
-                <p className="text-muted-foreground">No documents yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  <Label>Select document</Label>
-                  <Select value={selectedDocumentId} onValueChange={(v) => setSelectedDocumentId(v)}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Choose a document" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {documents.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {currentDocument && (
-            <Card className="mt-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Document Editor: {currentDocument.title}</CardTitle>
-                  <div className="flex gap-2">
-                    {editMode ? (
-                      <>
-                        <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
-                        <Button onClick={saveDocumentEdit}>Save Changes</Button>
-                      </>
-                    ) : (
-                      <Button onClick={() => setEditMode(true)} disabled={!documentContent || documentContent.includes("Error") || documentContent.includes("Failed")}>
-                        Edit Document
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {editMode ? (
-                  <Textarea
-                    value={documentContent}
-                    onChange={(e) => setDocumentContent(e.target.value)}
-                    className="min-h-[400px] font-mono text-sm"
-                    placeholder="Edit your document content here..."
-                  />
-                ) : (
-                  <div className="border rounded-md p-4 min-h-[400px] bg-muted/50">
-                    <pre className="whitespace-pre-wrap text-sm">{documentContent || "Loading document content..."}</pre>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>5) Manual Version Testing</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <form onSubmit={saveVersion} className="space-y-2">
-                <Label htmlFor="content">Content (for quick testing)</Label>
-                <Textarea id="content" placeholder="Type version content here..." value={versionContent} onChange={(e) => setVersionContent(e.target.value)} />
-                <Button type="submit" disabled={!selectedDocumentId || !versionContent.trim()}>Save New Version</Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>6) Version History & Sharing</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Separator />
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Versions</Label>
-                  <Button variant="secondary" onClick={() => refreshVersions(selectedDocumentId)} disabled={!selectedDocumentId}>Refresh</Button>
-                </div>
-                {versions.length === 0 ? (
-                  <p className="text-muted-foreground">No versions yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {versions.map((v) => (
-                      <li key={v.id} className="flex items-center justify-between">
-                        <span className="text-sm">v{v.version_number} · {new Date(v.created_at).toLocaleString()}</span>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => restoreVersion(v.id)}>Restore</Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <Label>Share</Label>
-                <Button variant="outline" onClick={createShareLink} disabled={!selectedDocumentId}>Create read-only link</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="mt-6 flex justify-end">
-            <Button variant="secondary" onClick={async () => { await supabase.auth.signOut(); window.location.href = "/auth"; }}>Sign out</Button>
-          </div>
-        </section>
-      </div>
-    </main>
+        </div>
+      )}
+    </div>
   );
 };
 
