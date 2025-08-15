@@ -14,7 +14,191 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          company: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      document_versions: {
+        Row: {
+          content: string | null
+          created_at: string
+          created_by: string
+          document_id: string
+          file_path: string | null
+          id: string
+          version_number: number | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          created_by: string
+          document_id: string
+          file_path?: string | null
+          id?: string
+          version_number?: number | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          file_path?: string | null
+          id?: string
+          version_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_path: string | null
+          id: string
+          mime_type: string | null
+          project_id: string
+          size_bytes: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          mime_type?: string | null
+          project_id: string
+          size_bytes?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          mime_type?: string | null
+          project_id?: string
+          size_bytes?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shares: {
+        Row: {
+          can_edit: boolean
+          created_at: string
+          created_by: string
+          document_id: string
+          expires_at: string | null
+          id: string
+          token: string
+        }
+        Insert: {
+          can_edit?: boolean
+          created_at?: string
+          created_by: string
+          document_id: string
+          expires_at?: string | null
+          id?: string
+          token: string
+        }
+        Update: {
+          can_edit?: boolean
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          expires_at?: string | null
+          id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shares_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
