@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
+import * as mammoth from "mammoth";
 
 const Index: React.FC = () => {
   const { toast } = useToast();
@@ -30,6 +31,11 @@ const Index: React.FC = () => {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
   const [versions, setVersions] = useState<any[]>([]);
   const [versionContent, setVersionContent] = useState("");
+
+  // Document editing states
+  const [currentDocument, setCurrentDocument] = useState<any>(null);
+  const [documentContent, setDocumentContent] = useState("");
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     document.title = "B2B Docs Dashboard · Clients, Projects, Documents";
@@ -114,7 +120,20 @@ const Index: React.FC = () => {
   useEffect(() => { if (userId) { refreshClients(); } }, [userId]);
   useEffect(() => { refreshProjects(selectedClientId); }, [selectedClientId]);
   useEffect(() => { refreshDocuments(selectedProjectId); }, [selectedProjectId]);
-  useEffect(() => { refreshVersions(selectedDocumentId); }, [selectedDocumentId]);
+  useEffect(() => { 
+    refreshVersions(selectedDocumentId); 
+    if (selectedDocumentId) {
+      const doc = documents.find(d => d.id === selectedDocumentId);
+      setCurrentDocument(doc);
+      if (doc) {
+        loadDocumentContent(doc);
+      }
+    } else {
+      setCurrentDocument(null);
+      setDocumentContent("");
+      setEditMode(false);
+    }
+  }, [selectedDocumentId, documents]);
 
   const createClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,6 +232,66 @@ const Index: React.FC = () => {
     }
   };
 
+  const loadDocumentContent = async (document: any) => {
+    if (!document?.file_path) {
+      setDocumentContent("No file uploaded for this document.");
+      return;
+    }
+
+    try {
+      // Download the file from storage
+      const { data, error } = await supabase.storage
+        .from("documents")
+        .download(document.file_path);
+
+      if (error) {
+        toast({ title: "Failed to load document", description: error.message, variant: "destructive" });
+        setDocumentContent("Failed to load document content.");
+        return;
+      }
+
+      // Parse content based on file type
+      if (document.file_name?.endsWith('.docx')) {
+        try {
+          const arrayBuffer = await data.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          setDocumentContent(result.value || "Empty document");
+        } catch (err) {
+          setDocumentContent("Error parsing .docx file. Raw content not available.");
+        }
+      } else if (document.file_name?.endsWith('.doc')) {
+        setDocumentContent("Legacy .doc files not fully supported. Please use .docx format for better editing experience.");
+      } else {
+        // Try to read as text
+        const text = await data.text();
+        setDocumentContent(text);
+      }
+    } catch (err) {
+      setDocumentContent("Error loading document content.");
+      toast({ title: "Load error", description: "Failed to load document", variant: "destructive" });
+    }
+  };
+
+  const saveDocumentEdit = async () => {
+    if (!userId || !selectedDocumentId || !documentContent.trim()) return;
+    
+    const { error } = await supabase
+      .from("document_versions")
+      .insert({ 
+        document_id: selectedDocumentId, 
+        created_by: userId, 
+        content: documentContent.trim() 
+      });
+      
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Document saved as new version" });
+      setEditMode(false);
+      refreshVersions(selectedDocumentId);
+    }
+  };
+
   const restoreVersion = async (versionId: string) => {
     const v = versions.find((x) => x.id === versionId);
     if (!v || !userId || !selectedDocumentId) return;
@@ -224,6 +303,10 @@ const Index: React.FC = () => {
     } else {
       toast({ title: "Version restored (new version created)" });
       refreshVersions(selectedDocumentId);
+      // Update current content if restored version has content
+      if (v.content) {
+        setDocumentContent(v.content);
+      }
     }
   };
 
@@ -362,9 +445,45 @@ const Index: React.FC = () => {
             </CardContent>
           </Card>
 
+          {currentDocument && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Document Editor: {currentDocument.title}</CardTitle>
+                  <div className="flex gap-2">
+                    {editMode ? (
+                      <>
+                        <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                        <Button onClick={saveDocumentEdit}>Save Changes</Button>
+                      </>
+                    ) : (
+                      <Button onClick={() => setEditMode(true)} disabled={!documentContent || documentContent.includes("Error") || documentContent.includes("Failed")}>
+                        Edit Document
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {editMode ? (
+                  <Textarea
+                    value={documentContent}
+                    onChange={(e) => setDocumentContent(e.target.value)}
+                    className="min-h-[400px] font-mono text-sm"
+                    placeholder="Edit your document content here..."
+                  />
+                ) : (
+                  <div className="border rounded-md p-4 min-h-[400px] bg-muted/50">
+                    <pre className="whitespace-pre-wrap text-sm">{documentContent || "Loading document content..."}</pre>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>5) Save/Restore Versions</CardTitle>
+              <CardTitle>5) Manual Version Testing</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <form onSubmit={saveVersion} className="space-y-2">
@@ -372,6 +491,13 @@ const Index: React.FC = () => {
                 <Textarea id="content" placeholder="Type version content here..." value={versionContent} onChange={(e) => setVersionContent(e.target.value)} />
                 <Button type="submit" disabled={!selectedDocumentId || !versionContent.trim()}>Save New Version</Button>
               </form>
+            </CardContent>
+          </Card>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>6) Version History & Sharing</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <Separator />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
