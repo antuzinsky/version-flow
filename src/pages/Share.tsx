@@ -14,7 +14,7 @@ interface ShareData {
     can_edit: boolean;
     expires_at: string | null;
   };
-  document: {
+  documentData: {
     id: string;
     title: string;
     file_name: string | null;
@@ -108,7 +108,7 @@ const Share: React.FC = () => {
     );
   }
 
-  const { share, document } = shareData;
+  const { share, documentData } = shareData;
   const expiresAt = share.expires_at ? new Date(share.expires_at) : null;
   const isExpired = expiresAt && expiresAt < new Date();
 
@@ -168,20 +168,20 @@ const Share: React.FC = () => {
       <main className="container mx-auto px-6 py-8 max-w-4xl">
         {/* Document Info */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{document.title}</h1>
+          <h1 className="text-3xl font-bold mb-2">{documentData.title}</h1>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Building className="h-4 w-4" />
-              <span>{document.client}</span>
+              <span>{documentData.client}</span>
             </div>
             <div className="flex items-center gap-1">
               <Folder className="h-4 w-4" />
-              <span>{document.project}</span>
+              <span>{documentData.project}</span>
             </div>
-            {document.file_name && (
+            {documentData.file_name && (
               <div className="flex items-center gap-1">
                 <FileText className="h-4 w-4" />
-                <span>{document.file_name}</span>
+                <span>{documentData.file_name}</span>
               </div>
             )}
           </div>
@@ -199,7 +199,7 @@ const Share: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="prose max-w-none">
-              {document.content.includes('[DOCX file') ? (
+              {documentData.content.includes('[DOCX file') ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium mb-2">DOCX File Shared</p>
@@ -207,12 +207,12 @@ const Share: React.FC = () => {
                     This is a Microsoft Word document. The original file formatting cannot be displayed in the browser.
                   </p>
                   <p className="text-sm mt-2">
-                    File: <span className="font-mono">{document.file_name}</span>
+                    File: <span className="font-mono">{documentData.file_name}</span>
                   </p>
                 </div>
               ) : (
                 <div className="whitespace-pre-wrap text-base leading-relaxed">
-                  {document.content || "This document appears to be empty."}
+                  {documentData.content || "This document appears to be empty."}
                 </div>
               )}
             </div>

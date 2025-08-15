@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
         can_edit: shareData.can_edit,
         expires_at: shareData.expires_at,
       },
-      document: {
+      documentData: {
         id: document.id,
         title: document.title,
         file_name: document.file_name,
