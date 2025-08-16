@@ -8,27 +8,24 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  console.log('Function called with method:', req.method)
-
-  // Handle CORS preflight requests
+  // CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS request')
     return new Response(null, { status: 200, headers: corsHeaders })
   }
 
-  try {
-    const supabase = createClient(
-      'https://nmcipsyyhnlquloudalf.supabase.co',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+  const supabase = createClient(
+    'https://nmcipsyyhnlquloudalf.supabase.co',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  )
 
-    // Support both GET (no preflight) and POST
+  try {
+    // Support GET ?token=... and POST { token }
     let token: string | null = null
     if (req.method === 'GET') {
       const url = new URL(req.url)
       token = url.searchParams.get('token')
     } else {
-      const body = await req.json().catch(() => ({} as any))
+      const body = await req.json().catch(() => ({})) as any
       token = body?.token ?? null
     }
 
@@ -39,31 +36,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('Fetching share by token:', token)
-
+    // 1) Fetch share (no joins, avoid FK dependency)
     const { data: share, error: shareErr } = await supabase
       .from('shares')
-      .select(`
-        token, share_type, can_edit, expires_at,
-        documents:documents (
-          id, title, file_name, file_path, mime_type,
-          projects:projects (
-            name,
-            clients:clients ( name )
-          )
-        )
-      `)
+      .select('token, can_edit, expires_at, share_type, document_id')
       .eq('token', token)
       .maybeSingle()
 
-    if (shareErr) {
-      console.error('Share query error:', shareErr)
-      return new Response(JSON.stringify({ error: 'Failed to fetch share' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
+    if (shareErr) throw new Error(`Share query failed: ${shareErr.message}`)
     if (!share) {
       return new Response(JSON.stringify({ error: 'Share not found' }), {
         status: 404,
@@ -71,18 +51,44 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Document content
-    const doc = share.documents
-    let content = ''
+    // 2) Fetch document
+    const { data: doc, error: docErr } = await supabase
+      .from('documents')
+      .select('id, title, file_name, file_path, mime_type, project_id')
+      .eq('id', share.document_id)
+      .maybeSingle()
+    if (docErr) throw new Error(`Document query failed: ${docErr.message}`)
+    if (!doc) throw new Error('Document not found')
 
-    if (doc?.file_path) {
-      const { data: fileData, error: downloadError } = await supabase.storage
+    // 3) Fetch project
+    const { data: proj, error: projErr } = await supabase
+      .from('projects')
+      .select('id, name, client_id')
+      .eq('id', doc.project_id)
+      .maybeSingle()
+    if (projErr) throw new Error(`Project query failed: ${projErr.message}`)
+
+    // 4) Fetch client
+    let clientName: string | null = null
+    if (proj?.client_id) {
+      const { data: client, error: clientErr } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('id', proj.client_id)
+        .maybeSingle()
+      if (clientErr) throw new Error(`Client query failed: ${clientErr.message}`)
+      clientName = client?.name ?? null
+    }
+
+    // 5) Load file content (text fallback)
+    let content = ''
+    if (doc.file_path) {
+      const { data: fileData, error: fileErr } = await supabase.storage
         .from('documents')
         .download(doc.file_path)
-      if (downloadError) {
-        console.error('File download error:', downloadError)
+      if (fileErr) {
         content = 'Error loading document content.'
-      } else if (doc.file_name?.endsWith('.docx')) {
+      } else if (doc.file_name?.toLowerCase().endsWith('.docx')) {
         content = '[DOCX file - content will be parsed on client side]'
       } else {
         content = await fileData.text()
@@ -91,14 +97,15 @@ Deno.serve(async (req) => {
       content = 'No file uploaded for this document.'
     }
 
-    // Versions
+    // 6) Versions
     let versions: any[] = []
     if (share.share_type === 'all_versions') {
-      const { data: allVersions } = await supabase
+      const { data: allVersions, error: verErr } = await supabase
         .from('document_versions')
         .select('id, version_number, content, created_at, created_by')
         .eq('document_id', doc.id)
         .order('created_at', { ascending: false })
+      if (verErr) throw new Error(`Versions query failed: ${verErr.message}`)
       versions = allVersions || []
     }
 
@@ -124,8 +131,8 @@ Deno.serve(async (req) => {
         title: doc.title,
         file_name: doc.file_name,
         content: finalContent,
-        project: doc.projects?.name,
-        client: doc.projects?.clients?.name,
+        project: proj?.name ?? null,
+        client: clientName,
       },
       versions,
     }
@@ -134,9 +141,8 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
-  } catch (error) {
-    console.error('Unexpected error:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: 'Internal server error', details: String(e?.message || e) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
