@@ -36,7 +36,7 @@ interface DocumentComparisonProps {
 }
 
 const DocumentComparison: React.FC<DocumentComparisonProps> = ({ version1, version2, onChangesUpdate }) => {
-  const diff = diffLines(version1.content, version2.content);
+  const diff = diffLines(version1.content || '', version2.content || '');
   
   // Create changes array from diff
   const [changes, setChanges] = useState<Change[]>(() => {
