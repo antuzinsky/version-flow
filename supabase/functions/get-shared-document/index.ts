@@ -3,6 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 }
 
 Deno.serve(async (req) => {
@@ -13,7 +15,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_URL') ?? 'https://nmcipsyyhnlquloudalf.supabase.co',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
@@ -78,18 +80,18 @@ Deno.serve(async (req) => {
 
     // Get document content if file exists
     let content = '';
-    const document = shareData.documents;
+    const doc = shareData.documents;
 
-    if (document.file_path) {
+    if (doc.file_path) {
       try {
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('documents')
-          .download(document.file_path);
+          .download(doc.file_path);
 
         if (downloadError) {
           console.error('File download error:', downloadError);
           content = 'Error loading document content.';
-        } else if (document.file_name?.endsWith('.docx')) {
+        } else if (doc.file_name?.endsWith('.docx')) {
           // For .docx files, we can't parse them server-side easily
           // We'll let the client handle this
           content = '[DOCX file - content will be parsed on client side]';
@@ -107,14 +109,13 @@ Deno.serve(async (req) => {
 
     // Get version content based on share type
     let versions = [];
-    const document = shareData.documents;
 
     if (shareData.share_type === 'all_versions') {
       // Get all versions for version switching
       const { data: allVersions } = await supabase
         .from('document_versions')
         .select('id, version_number, content, created_at, created_by')
-        .eq('document_id', document.id)
+        .eq('document_id', doc.id)
         .order('created_at', { ascending: false });
       
       versions = allVersions || [];
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
     const { data: versionData } = await supabase
       .from('document_versions')
       .select('content')
-      .eq('document_id', document.id)
+      .eq('document_id', doc.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -139,17 +140,17 @@ Deno.serve(async (req) => {
         share_type: shareData.share_type,
       },
       documentData: {
-        id: document.id,
-        title: document.title,
-        file_name: document.file_name,
+        id: doc.id,
+        title: doc.title,
+        file_name: doc.file_name,
         content: finalContent,
-        project: document.projects?.name,
-        client: document.projects?.clients?.name,
+        project: doc.projects?.name,
+        client: doc.projects?.clients?.name,
       },
       versions: versions
     };
 
-    console.log(`Successfully fetched shared document: ${document.title}`);
+    console.log(`Successfully fetched shared document: ${doc.title}`);
 
     return new Response(
       JSON.stringify(response),
