@@ -24,34 +24,37 @@ type ShareData = {
     title: string;
     file_name: string;
     content: string;
-    project?: string;
-    client?: string;
+    project?: string | null;
+    client?: string | null;
   };
   versions: Version[];
 };
 
 export default function Share() {
   const [shareData, setShareData] = useState<ShareData | null>(null);
-  const [selectedVersions, setSelectedVersions] = useState<Set<string>>(new Set());
+  const [selectedVersions, setSelectedVersions] = useState<Set<string>>(
+    new Set()
+  );
   const [comparisonVersions, setComparisonVersions] = useState<{
     version1: VersionWithLatest | null;
     version2: VersionWithLatest | null;
   }>({ version1: null, version2: null });
   const [isComparing, setIsComparing] = useState(false);
+  const [showChangesPanel, setShowChangesPanel] = useState(false);
 
   useEffect(() => {
     (async () => {
-      // 1. Пытаемся достать токен из query
-      let token = new URLSearchParams(window.location.search).get("token");
-
-      // 2. Если его нет — достаём из pathname (/share/:token)
-      if (!token) {
-        const parts = window.location.pathname.split("/");
-        token = parts[parts.length - 1] || null;
-      }
-
+      const token = window.location.pathname.split("/").pop();
       console.log("token from URL:", token);
-      if (!token) return;
+
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: "Не найден token в URL",
+        });
+        return;
+      }
 
       try {
         const res = await fetch(
@@ -64,7 +67,6 @@ export default function Share() {
         );
 
         const data = await res.json();
-
         if (data.error) {
           toast({
             variant: "destructive",
@@ -87,24 +89,33 @@ export default function Share() {
   }, []);
 
   const handleCompare = async () => {
-    if (selectedVersions.size !== 2 || !shareData) return;
+    if (selectedVersions.size !== 2) return;
     const versionIds = Array.from(selectedVersions);
 
     const allVersionsWithLatest: VersionWithLatest[] = [
       {
         id: "latest",
-        content: shareData.documentData.content || "",
+        content: shareData?.documentData.content || "",
         version_number: 999,
-        created_by: shareData.documentData.client || "",
+        created_by: shareData?.documentData.client || "",
         created_at: new Date().toISOString(),
         isLatest: true,
       },
-      ...(shareData.versions || []).map((v) => ({ ...v, isLatest: false })),
+      ...(shareData?.versions || []).map((v) => ({ ...v, isLatest: false })),
     ];
 
     let a = allVersionsWithLatest.find((v) => v.id === versionIds[0]);
     let b = allVersionsWithLatest.find((v) => v.id === versionIds[1]);
     if (!a || !b) return;
+
+    if (!a.content?.trim() || !b.content?.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Нет текста",
+        description: "Не удалось получить текст одной из версий",
+      });
+      return;
+    }
 
     const [left, right] = [a, b].sort((x, y) => {
       if (x.isLatest && !y.isLatest) return 1;
@@ -114,6 +125,7 @@ export default function Share() {
 
     setComparisonVersions({ version1: left, version2: right });
     setIsComparing(true);
+    setShowChangesPanel(true);
   };
 
   return (
@@ -130,7 +142,7 @@ export default function Share() {
       ) : (
         <>
           <h1 className="text-xl font-bold mb-4">
-            {shareData?.documentData.title || "Документ"}
+            {shareData?.documentData?.title || "Документ"}
           </h1>
           <button
             className="btn btn-primary mb-2"
