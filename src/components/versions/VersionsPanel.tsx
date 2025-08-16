@@ -9,6 +9,8 @@ interface VersionsPanelProps {
   onRestore: (versionId: string) => void;
   onRefresh: () => void;
   selectedDocumentId?: string;
+  selectedVersionId?: string;
+  onVersionSelect: (versionId: string) => void;
 }
 
 export const VersionsPanel: React.FC<VersionsPanelProps> = ({
@@ -16,6 +18,8 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
   onRestore,
   onRefresh,
   selectedDocumentId,
+  selectedVersionId,
+  onVersionSelect,
 }) => {
   return (
     <div className="w-80 border-l border-border bg-sidebar flex flex-col h-full">
@@ -45,7 +49,14 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
             <div className="space-y-3">
               {versions.map((version, index) => (
                 <div key={version.id} className="group">
-                  <div className="flex items-start justify-between p-3 rounded-lg border border-sidebar-border bg-sidebar-accent/50 hover:bg-sidebar-accent transition-colors">
+                  <div 
+                    className={`flex items-start justify-between p-3 rounded-lg border border-sidebar-border transition-colors cursor-pointer ${
+                      selectedVersionId === version.id 
+                        ? 'bg-sidebar-accent border-sidebar-primary' 
+                        : 'bg-sidebar-accent/50 hover:bg-sidebar-accent'
+                    }`}
+                    onClick={() => onVersionSelect(version.id)}
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-medium text-sidebar-foreground">
@@ -54,6 +65,11 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
                         {index === 0 && (
                           <span className="text-xs px-2 py-0.5 bg-sidebar-primary text-sidebar-primary-foreground rounded-full">
                             Latest
+                          </span>
+                        )}
+                        {selectedVersionId === version.id && (
+                          <span className="text-xs px-2 py-0.5 bg-sidebar-accent text-sidebar-accent-foreground rounded-full">
+                            Viewing
                           </span>
                         )}
                       </div>
@@ -68,7 +84,10 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onRestore(version.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRestore(version.id);
+                      }}
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-sidebar-foreground hover:text-sidebar-accent-foreground"
                     >
                       Restore
