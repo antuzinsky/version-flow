@@ -5,7 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Building, Folder, Calendar, AlertCircle } from "lucide-react";
+import { FileText, Building, Folder, Calendar, AlertCircle, GitCompare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 
 interface ShareData {
@@ -41,6 +43,7 @@ const Share: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [currentContent, setCurrentContent] = useState<string>("");
+  const [selectedVersions, setSelectedVersions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     document.title = "Shared Document · B2B Docs";
@@ -128,6 +131,20 @@ const Share: React.FC = () => {
     if (!shareData) return;
     setSelectedVersionId(null);
     setCurrentContent(shareData.documentData.content);
+  };
+
+  const handleVersionCheckboxChange = (versionId: string, checked: boolean) => {
+    const newSelected = new Set(selectedVersions);
+    if (checked) {
+      newSelected.add(versionId);
+    } else {
+      newSelected.delete(versionId);
+    }
+    setSelectedVersions(newSelected);
+  };
+
+  const clearSelectedVersions = () => {
+    setSelectedVersions(new Set());
   };
 
   if (loading) {
@@ -221,120 +238,201 @@ const Share: React.FC = () => {
         </div>
       </header>
 
-      {/* Content */}
-      <main className="container mx-auto px-6 py-8 max-w-4xl">
-        {/* Document Info */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{documentData.title}</h1>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Building className="h-4 w-4" />
-              <span>{documentData.client}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Folder className="h-4 w-4" />
-              <span>{documentData.project}</span>
-            </div>
-            {documentData.file_name && (
-              <div className="flex items-center gap-1">
-                <FileText className="h-4 w-4" />
-                <span>{documentData.file_name}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Version Selector */}
+      <div className="flex min-h-[calc(100vh-73px)]">
+        {/* Left Sidebar - Versions Panel */}
         {showVersions && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Version History</CardTitle>
+          <aside className="w-80 border-r border-border bg-card/30">
+            <div className="p-4 border-b border-border">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Версии</h2>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={resetToLatest}
+                    disabled={!selectedVersionId}
+                  >
+                    Show Latest
+                  </Button>
+                  {selectedVersions.size > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={clearSelectedVersions}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Compare Controls */}
+              <div className="flex items-center gap-2 mb-4">
+                <Badge variant="outline" className="text-xs">
+                  {selectedVersions.size} выбрано
+                </Badge>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={resetToLatest}
-                  disabled={!selectedVersionId}
+                  className="flex items-center gap-1"
+                  disabled={selectedVersions.size < 2}
                 >
-                  Show Latest
+                  <GitCompare className="h-3 w-3" />
+                  Compare
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            </div>
+
+            <ScrollArea className="h-[calc(100vh-200px)]">
+              <div className="p-4 space-y-3">
+                {/* Latest version first */}
+                <div 
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    !selectedVersionId ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={resetToLatest}
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox 
+                      checked={selectedVersions.has('latest')}
+                      onCheckedChange={(checked) => handleVersionCheckboxChange('latest', checked as boolean)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium">Latest (Compiled)</div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            resetToLatest();
+                          }}
+                        >
+                          Open
+                        </Button>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {new Date().toLocaleDateString()} • {documentData.client}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Version history */}
                 {versions.map((version) => (
-                  <Button
+                  <div 
                     key={version.id}
-                    variant={selectedVersionId === version.id ? "default" : "outline"}
-                    className="h-auto p-4 text-left flex flex-col items-start"
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedVersionId === version.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}
                     onClick={() => handleVersionSelect(version.id)}
                   >
-                    <div className="font-medium">v{version.version_number}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {new Date(version.created_at).toLocaleDateString()}
+                    <div className="flex items-center gap-3">
+                      <Checkbox 
+                        checked={selectedVersions.has(version.id)}
+                        onCheckedChange={(checked) => handleVersionCheckboxChange(version.id, checked as boolean)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">V{version.version_number} — {version.created_by}</div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVersionSelect(version.id);
+                            }}
+                          >
+                            Open
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {new Date(version.created_at).toLocaleDateString()} • {version.created_by}
+                        </div>
+                      </div>
                     </div>
-                    {selectedVersionId === version.id && (
-                      <Badge variant="secondary" className="mt-2 text-xs">
-                        Current View
-                      </Badge>
-                    )}
-                  </Button>
+                  </div>
                 ))}
               </div>
-              {selectedVersion && (
-                <div className="mt-4 p-3 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Viewing:</strong> Version {selectedVersion.version_number} from{' '}
-                    {new Date(selectedVersion.created_at).toLocaleString()}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </ScrollArea>
+          </aside>
         )}
 
-        <Separator className="mb-8" />
+        {/* Main Content */}
+        <main className="flex-1 overflow-hidden">
+          <div className="h-full overflow-auto">
+            <div className="p-6 max-w-4xl mx-auto">
+              {/* Document Info */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h1 className="text-3xl font-bold mb-2">
+                      {documentData.title} — {selectedVersion ? `V${selectedVersion.version_number}` : 'Latest (Compiled)'}
+                    </h1>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Building className="h-4 w-4" />
+                        <span>{documentData.client}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Folder className="h-4 w-4" />
+                        <span>{documentData.project}</span>
+                      </div>
+                      {documentData.file_name && (
+                        <div className="flex items-center gap-1">
+                          <FileText className="h-4 w-4" />
+                          <span>{documentData.file_name}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Последнее обновление • {selectedVersion ? new Date(selectedVersion.created_at).toLocaleDateString() : new Date().toLocaleDateString()} • автор: {selectedVersion?.created_by || documentData.client}
+                  </div>
+                </div>
+              </div>
 
-        {/* Document Content */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Document Content
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="prose max-w-none">
-              {currentContent.includes('[DOCX file') ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium mb-2">DOCX File Shared</p>
-                  <p className="text-sm">
-                    This is a Microsoft Word document. The original file formatting cannot be displayed in the browser.
-                  </p>
-                  <p className="text-sm mt-2">
-                    File: <span className="font-mono">{documentData.file_name}</span>
-                  </p>
-                </div>
-              ) : (
-                <div className="whitespace-pre-wrap text-base leading-relaxed">
-                  {currentContent || "This document appears to be empty."}
-                </div>
-              )}
+              {/* Document Content */}
+              <Card>
+                <CardContent className="p-8">
+                  <div className="prose max-w-none">
+                    {currentContent.includes('[DOCX file') ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">DOCX File Shared</p>
+                        <p className="text-sm">
+                          This is a Microsoft Word document. The original file formatting cannot be displayed in the browser.
+                        </p>
+                        <p className="text-sm mt-2">
+                          File: <span className="font-mono">{documentData.file_name}</span>
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap text-base leading-relaxed">
+                        {currentContent || "This document appears to be empty."}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Footer */}
+              <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
+                <p>
+                  Shared via{" "}
+                  <a href="/" className="text-primary hover:underline">
+                    B2B Docs
+                  </a>
+                </p>
+              </footer>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>
-            Shared via{" "}
-            <a href="/" className="text-primary hover:underline">
-              B2B Docs
-            </a>
-          </p>
-        </footer>
-      </main>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
