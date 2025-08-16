@@ -187,7 +187,7 @@ const Share: React.FC = () => {
         created_at: new Date().toISOString(),
         isLatest: true
       },
-      ...(shareData?.versions || []).map(v => ({ ...v, isLatest: false }))
+      ...(shareData?.versions || []).map(v => ({ ...v, content: v.content || '', isLatest: false }))
     ];
     
     const version1 = allVersionsWithLatest.find(v => v.id === versionIds[0]);
