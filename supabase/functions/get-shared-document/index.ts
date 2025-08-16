@@ -13,6 +13,17 @@ Deno.serve(async (req) => {
     return new Response(null, { status: 200, headers: corsHeaders })
   }
 
+  // Health check without touching DB
+  try {
+    const url = new URL(req.url)
+    if (url.searchParams.get('ping') === '1') {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+  } catch (_) {}
+
   const supabase = createClient(
     'https://nmcipsyyhnlquloudalf.supabase.co',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
