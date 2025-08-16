@@ -8,6 +8,7 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
+  try { console.log('[get-shared-document] entry', req.method, req.url) } catch (_) {}
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders })
@@ -30,6 +31,9 @@ Deno.serve(async (req) => {
   )
 
   try {
+    const hasKey = !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    try { console.log('[get-shared-document] has service role key:', hasKey) } catch (_) {}
+
     // Support GET ?token=... and POST { token }
     let token: string | null = null
     if (req.method === 'GET') {
@@ -38,6 +42,8 @@ Deno.serve(async (req) => {
     } else {
       const body = await req.json().catch(() => ({})) as any
       token = body?.token ?? null
+      try { console.log('[get-shared-document] token from body present:', !!token) } catch (_) {}
+
     }
 
     if (!token) {
