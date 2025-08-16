@@ -1,16 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { toast } from '@/components/ui/use-toast';
-import DocumentComparison from '@/components/DocumentComparison';
-
-const { token } = params; // токен из query string
-const res = await fetch(`https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ token }),
-});
-
-const data = await res.json();
+import React, { useState, useEffect } from "react";
+import { toast } from "@/components/ui/use-toast";
+import DocumentComparison from "@/components/DocumentComparison";
 
 type Version = {
   id: string;
@@ -46,90 +36,87 @@ export default function Share() {
     version2: VersionWithLatest | null;
   }>({ version1: null, version2: null });
   const [isComparing, setIsComparing] = useState(false);
-  const [showChangesPanel, setShowChangesPanel] = useState(false);
 
   useEffect(() => {
-    // Загружаем данные шары документа
     (async () => {
-      const token = new URLSearchParams(window.location.search).get('token');
+      const token = new URLSearchParams(window.location.search).get("token");
       if (!token) return;
-      const { data, error } = await supabase.functions.invoke('get-shared-document', {
-        body: { token }
-      });
-      if (error) {
-        toast({ variant: 'destructive', title: 'Ошибка', description: 'Не удалось загрузить документ' });
-        return;
+
+      try {
+        const res = await fetch(
+          "https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          }
+        );
+
+        if (!res.ok) throw new Error(`Ошибка загрузки: ${res.status}`);
+        const data = await res.json();
+        setShareData(data as ShareData);
+      } catch (e: any) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка",
+          description: e.message || "Не удалось загрузить документ",
+        });
       }
-      setShareData(data as ShareData);
     })();
   }, []);
 
-  // Хелпер: дозагружаем content версии, если он пустой
+  // Дозагружаем контент версии, если он пустой
   async function ensureVersionContent(v: VersionWithLatest): Promise<VersionWithLatest> {
     if (v.isLatest) return v;
-    if (v.content && v.content.trim() !== '') return v;
+    if (v.content && v.content.trim() !== "") return v;
 
     try {
-      // Пробуем через edge-функцию
-      const { data, error } = await supabase.functions.invoke('get-document-version', {
-        body: { versionId: v.id }
-      });
-      if (!error && data?.content) return { ...v, content: data.content };
+      const res = await fetch(
+        "https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-document-version",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ versionId: v.id }),
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.content) return { ...v, content: data.content };
+      }
     } catch (e) {
-      console.warn('Edge function failed, fallback to table', e);
-    }
-
-    try {
-      // Фоллбек — читать напрямую из таблицы (если RLS разрешает)
-      const { data: row, error } = await supabase
-        .from('document_versions')
-        .select('content')
-        .eq('id', v.id)
-        .maybeSingle();
-      if (!error && row?.content) return { ...v, content: row.content };
-    } catch (e) {
-      console.error('Direct fetch failed', e);
+      console.warn("Не удалось загрузить контент версии", e);
     }
 
     return v;
   }
 
   const handleCompare = async () => {
-    if (selectedVersions.size !== 2) return;
+    if (selectedVersions.size !== 2 || !shareData) return;
     const versionIds = Array.from(selectedVersions);
 
     const allVersionsWithLatest: VersionWithLatest[] = [
       {
-        id: 'latest',
-        content: shareData?.documentData.content || '',
+        id: "latest",
+        content: shareData.documentData.content || "",
         version_number: 999,
-        created_by: shareData?.documentData.client || '',
+        created_by: shareData.documentData.client || "",
         created_at: new Date().toISOString(),
-        isLatest: true
+        isLatest: true,
       },
-      ...(shareData?.versions || []).map(v => ({ ...v, isLatest: false }))
+      ...(shareData.versions || []).map((v) => ({ ...v, isLatest: false })),
     ];
 
-    let a = allVersionsWithLatest.find(v => v.id === versionIds[0]);
-    let b = allVersionsWithLatest.find(v => v.id === versionIds[1]);
+    let a = allVersionsWithLatest.find((v) => v.id === versionIds[0]);
+    let b = allVersionsWithLatest.find((v) => v.id === versionIds[1]);
     if (!a || !b) return;
 
     [a, b] = await Promise.all([ensureVersionContent(a), ensureVersionContent(b)]);
 
-    console.table(
-      [a, b].map(v => ({
-        id: v.id,
-        ver: v.version_number,
-        latest: !!v.isLatest,
-        contentLen: v.content ? v.content.length : 0
-      }))
-    );
-
     if (!a.content?.trim() || !b.content?.trim()) {
       toast({
-        variant: 'destructive',
-        title: 'Нет текста',
-        description: 'Не удалось получить текст одной из версий'
+        variant: "destructive",
+        title: "Нет текста",
+        description: "Не удалось получить текст одной из версий",
       });
       return;
     }
@@ -142,7 +129,6 @@ export default function Share() {
 
     setComparisonVersions({ version1: left, version2: right });
     setIsComparing(true);
-    setShowChangesPanel(true);
   };
 
   return (
@@ -158,7 +144,9 @@ export default function Share() {
         />
       ) : (
         <>
-          <h1 className="text-xl font-bold mb-4">{shareData?.documentData.title}</h1>
+          <h1 className="text-xl font-bold mb-4">
+            {shareData?.documentData.title || "Документ"}
+          </h1>
           <button
             className="btn btn-primary mb-2"
             disabled={selectedVersions.size !== 2}
@@ -167,14 +155,14 @@ export default function Share() {
             Сравнить выбранные версии
           </button>
           <ul>
-            {shareData?.versions?.map(v => (
+            {shareData?.versions?.map((v) => (
               <li key={v.id}>
                 <label>
                   <input
                     type="checkbox"
                     checked={selectedVersions.has(v.id)}
-                    onChange={e => {
-                      setSelectedVersions(prev => {
+                    onChange={(e) => {
+                      setSelectedVersions((prev) => {
                         const newSet = new Set(prev);
                         if (e.target.checked) newSet.add(v.id);
                         else newSet.delete(v.id);
