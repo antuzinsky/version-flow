@@ -10,8 +10,9 @@ interface Change {
   id: number;
   type: 'added' | 'removed';
   content: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'modified';
-  modifiedContent?: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'edited';
+  choice?: 'left' | 'right' | 'custom';
+  resolved?: string;
 }
 
 interface DocumentComparisonProps {
@@ -49,14 +50,21 @@ const DocumentComparison: React.FC<DocumentComparisonProps> = ({ version1, versi
       }));
   });
 
-  const handleChangeAction = (changeId: number, action: 'accept' | 'reject' | 'modify', modifiedContent?: string) => {
+  const handleChangeAction = (changeId: number, action: 'accept-left' | 'accept-right' | 'edit' | 'reset', customText?: string) => {
     const updatedChanges = changes.map(change => {
       if (change.id === changeId) {
-        return {
-          ...change,
-          status: action === 'accept' ? 'accepted' as const : action === 'reject' ? 'rejected' as const : 'modified' as const,
-          modifiedContent: action === 'modify' ? modifiedContent : undefined
-        };
+        switch (action) {
+          case 'accept-left':
+            return { ...change, status: 'rejected' as const, choice: 'left' as const, resolved: undefined };
+          case 'accept-right':
+            return { ...change, status: 'accepted' as const, choice: 'right' as const, resolved: undefined };
+          case 'edit':
+            return { ...change, status: 'edited' as const, choice: 'custom' as const, resolved: customText };
+          case 'reset':
+            return { ...change, status: 'pending' as const, choice: undefined, resolved: undefined };
+          default:
+            return change;
+        }
       }
       return change;
     });
@@ -71,7 +79,7 @@ const DocumentComparison: React.FC<DocumentComparisonProps> = ({ version1, versi
           {version.isLatest ? 'Latest (Compiled)' : `V${version.version_number}`}
         </CardTitle>
         <Badge variant="outline" className="text-xs">
-          {side === 'left' ? 'Старая версия' : 'Новая версия'}
+          {side === 'left' ? 'Старая версия (✓ — оставить как было)' : 'Новая версия (✓ — применить изменения)'}
         </Badge>
       </div>
       <div className="text-sm text-muted-foreground">
@@ -91,64 +99,105 @@ const DocumentComparison: React.FC<DocumentComparisonProps> = ({ version1, versi
             key={index}
             className={`px-3 py-1 text-sm leading-relaxed border-l-4 ${
               type === 'old' 
-                ? change?.status === 'accepted' 
+                ? change?.choice === 'left'
+                  ? 'bg-green-100 border-green-400 text-green-900 font-medium'
+                  : change?.choice === 'right'
                   ? 'bg-gray-100 border-gray-300 text-gray-500 line-through'
-                  : change?.status === 'rejected'
-                  ? 'bg-red-50 border-red-300 text-red-800'
+                  : change?.choice === 'custom'
+                  ? 'bg-gray-100 border-gray-300 text-gray-500 line-through'
                   : 'bg-red-50 border-red-300 text-red-800'
                 : type === 'new'
-                ? change?.status === 'accepted'
+                ? change?.choice === 'right'
                   ? 'bg-green-100 border-green-400 text-green-900 font-medium'
-                  : change?.status === 'rejected'
+                  : change?.choice === 'left'
                   ? 'bg-gray-100 border-gray-300 text-gray-500 line-through'
-                  : change?.status === 'modified'
-                  ? 'bg-blue-50 border-blue-300 text-blue-800'
+                  : change?.choice === 'custom'
+                  ? 'bg-gray-100 border-gray-300 text-gray-500 line-through'
                   : 'bg-green-50 border-green-300 text-green-800'
                 : 'text-foreground border-transparent'
             }`}
             dangerouslySetInnerHTML={{ 
-              __html: (change?.status === 'modified' && change.modifiedContent) 
-                ? change.modifiedContent 
+              __html: (change?.choice === 'custom' && change.resolved) 
+                ? change.resolved 
                 : line || '\u00A0' 
             }}
           />
         ))}
         
         {/* Action buttons for changes */}
-        {changeId !== undefined && change && change.status === 'pending' && (
+        {changeId !== undefined && change && (
           <div className="absolute right-2 top-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white border rounded shadow-sm p-1 flex gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
-              onClick={() => handleChangeAction(changeId, 'accept')}
-              title="Принять"
-            >
-              <Check className="h-3 w-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
-              onClick={() => handleChangeAction(changeId, 'reject')}
-              title="Отклонить"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
-              onClick={() => {
-                const newContent = prompt('Введите новый текст:', change.content);
-                if (newContent !== null) {
-                  handleChangeAction(changeId, 'modify', newContent);
-                }
-              }}
-              title="Изменить"
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
+            {type === 'old' ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-6 w-6 p-0 ${change.choice === 'left' ? 'text-green-600 bg-green-50' : 'text-gray-600 hover:bg-green-50'}`}
+                  onClick={() => handleChangeAction(changeId, 'accept-left')}
+                  title="Оставить старый текст"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
+                  onClick={() => handleChangeAction(changeId, 'reset')}
+                  title="Сбросить выбор"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
+                  onClick={() => {
+                    const newContent = prompt('Изменить итоговый текст блока:', change.resolved || change.content);
+                    if (newContent !== null) {
+                      handleChangeAction(changeId, 'edit', newContent);
+                    }
+                  }}
+                  title="Изменить итоговый текст блока"
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={`h-6 w-6 p-0 ${change.choice === 'right' ? 'text-green-600 bg-green-50' : 'text-gray-600 hover:bg-green-50'}`}
+                  onClick={() => handleChangeAction(changeId, 'accept-right')}
+                  title="Принять новое"
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
+                  onClick={() => handleChangeAction(changeId, 'reset')}
+                  title="Сбросить выбор"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
+                  onClick={() => {
+                    const newContent = prompt('Изменить итоговый текст блока:', change.resolved || change.content);
+                    if (newContent !== null) {
+                      handleChangeAction(changeId, 'edit', newContent);
+                    }
+                  }}
+                  title="Изменить итоговый текст блока"
+                >
+                  <Edit className="h-3 w-3" />
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>

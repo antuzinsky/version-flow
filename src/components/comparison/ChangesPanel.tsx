@@ -12,8 +12,9 @@ interface Change {
   id: number;
   type: 'added' | 'removed';
   content: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'modified';
-  modifiedContent?: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'edited';
+  choice?: 'left' | 'right' | 'custom';
+  resolved?: string;
 }
 
 interface ChangesPanelProps {
@@ -43,9 +44,9 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({
   const [chatHistory, setChatHistory] = useState<Array<{ type: 'user' | 'ai', message: string }>>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const acceptedCount = changes.filter(c => c.status === 'accepted').length;
-  const rejectedCount = changes.filter(c => c.status === 'rejected').length;
-  const modifiedCount = changes.filter(c => c.status === 'modified').length;
+  const acceptedCount = changes.filter(c => c.status === 'accepted' && c.choice === 'right').length;
+  const rejectedCount = changes.filter(c => c.status === 'rejected' && c.choice === 'left').length;
+  const editedCount = changes.filter(c => c.status === 'edited' && c.choice === 'custom').length;
   const pendingCount = changes.filter(c => c.status === 'pending').length;
   
   const allProcessed = pendingCount === 0;
@@ -172,7 +173,7 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Изменено: {modifiedCount}</span>
+              <span>Изменено вручную: {editedCount}</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
@@ -205,11 +206,11 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({
                 <div
                   key={change.id}
                   className={`p-2 rounded border text-xs cursor-pointer transition-colors ${
-                    change.status === 'accepted'
+                    change.status === 'accepted' && change.choice === 'right'
                       ? 'bg-green-50 border-green-200 text-green-800'
-                      : change.status === 'rejected'
+                      : change.status === 'rejected' && change.choice === 'left'
                       ? 'bg-red-50 border-red-200 text-red-800'
-                      : change.status === 'modified'
+                      : change.status === 'edited' && change.choice === 'custom'
                       ? 'bg-blue-50 border-blue-200 text-blue-800'
                       : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
                   }`}
@@ -217,17 +218,23 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium">
-                      #{index + 1} {change.status === 'accepted' ? 'Принято' : change.status === 'rejected' ? 'Отклонено' : change.status === 'modified' ? 'Изменено' : 'Ожидает'}
+                      #{index + 1} {
+                        change.status === 'pending' ? 'Ожидает' :
+                        change.status === 'accepted' && change.choice === 'right' ? 'Принято' :
+                        change.status === 'rejected' && change.choice === 'left' ? 'Отклонено' :
+                        change.status === 'edited' && change.choice === 'custom' ? 'Изменено вручную' :
+                        'Ожидает'
+                      }
                     </span>
                     <Badge variant="outline" className="text-xs">
                       {change.type === 'added' ? '+' : '-'}
                     </Badge>
                   </div>
                   <div className="text-xs opacity-80 line-clamp-2">
-                    {change.status === 'modified' && change.modifiedContent 
-                      ? change.modifiedContent.substring(0, 80)
+                    {change.choice === 'custom' && change.resolved 
+                      ? change.resolved.substring(0, 80)
                       : change.content.substring(0, 80)}
-                    {(change.status === 'modified' && change.modifiedContent ? change.modifiedContent.length > 80 : change.content.length > 80) ? '...' : ''}
+                    {(change.choice === 'custom' && change.resolved ? change.resolved.length > 80 : change.content.length > 80) ? '...' : ''}
                   </div>
                 </div>
               ))}

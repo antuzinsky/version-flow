@@ -62,8 +62,9 @@ const Share: React.FC = () => {
     id: number;
     type: 'added' | 'removed';
     content: string;
-    status: 'pending' | 'accepted' | 'rejected' | 'modified';
-    modifiedContent?: string;
+    status: 'pending' | 'accepted' | 'rejected' | 'edited';
+    choice?: 'left' | 'right' | 'custom';
+    resolved?: string;
   }>>([]);
 
   useEffect(() => {
