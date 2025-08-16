@@ -78,12 +78,10 @@ const Index: React.FC = () => {
     }
   };
 
-  const refreshProjects = async (clientId?: string) => {
-    if (!clientId) return setProjects([]);
+  const refreshProjects = async (_clientId?: string) => {
     const { data, error } = await supabase
       .from("projects")
       .select("*")
-      .eq("client_id", clientId)
       .order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Failed to load projects", description: error.message, variant: "destructive" });
@@ -93,12 +91,19 @@ const Index: React.FC = () => {
   };
 
   const refreshDocuments = async (projectId?: string) => {
-    if (!projectId) return setDocuments([]);
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false });
+    let data, error;
+    if (projectId) {
+      ({ data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false }));
+    } else {
+      ({ data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .order("created_at", { ascending: false }));
+    }
     if (error) {
       toast({ title: "Failed to load documents", description: error.message, variant: "destructive" });
     } else {
@@ -422,13 +427,10 @@ const Index: React.FC = () => {
   return (
     <div className="h-screen flex bg-background">
       <WorkspacePanel
-        clients={clients}
         projects={projects}
         documents={documents}
-        selectedClientId={selectedClientId}
         selectedProjectId={selectedProjectId}
         selectedDocumentId={selectedDocumentId}
-        onClientSelect={setSelectedClientId}
         onProjectSelect={setSelectedProjectId}
         onDocumentSelect={setSelectedDocumentId}
         onUploadClick={() => setUploadModalOpen(true)}

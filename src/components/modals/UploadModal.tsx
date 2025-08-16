@@ -117,7 +117,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <SelectValue placeholder="Or select existing project" />
               </SelectTrigger>
               <SelectContent>
-                {projects.filter(p => p.client_id === selectedClientId).map((project) => (
+                {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
                   </SelectItem>

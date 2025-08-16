@@ -87,6 +87,7 @@ export type Database = {
           created_at: string
           file_name: string | null
           file_path: string | null
+          folder_id: string | null
           id: string
           mime_type: string | null
           project_id: string
@@ -98,6 +99,7 @@ export type Database = {
           created_at?: string
           file_name?: string | null
           file_path?: string | null
+          folder_id?: string | null
           id?: string
           mime_type?: string | null
           project_id: string
@@ -109,6 +111,7 @@ export type Database = {
           created_at?: string
           file_name?: string | null
           file_path?: string | null
+          folder_id?: string | null
           id?: string
           mime_type?: string | null
           project_id?: string
@@ -118,6 +121,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documents_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -125,6 +135,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       projects: {
         Row: {
