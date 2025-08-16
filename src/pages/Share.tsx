@@ -41,16 +41,29 @@ export default function Share() {
 
   useEffect(() => {
     (async () => {
-      const token = new URLSearchParams(window.location.search).get("token");
+      // 1. Пытаемся достать токен из query
+      let token = new URLSearchParams(window.location.search).get("token");
+
+      // 2. Если его нет — достаём из pathname (/share/:token)
+      if (!token) {
+        const parts = window.location.pathname.split("/");
+        token = parts[parts.length - 1] || null;
+      }
+
       console.log("token from URL:", token);
       if (!token) return;
 
       try {
         const res = await fetch(
-          `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document?token=${token}`
+          "https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          }
         );
+
         const data = await res.json();
-        console.log("response from edge:", data);
 
         if (data.error) {
           toast({
@@ -60,6 +73,7 @@ export default function Share() {
           });
           return;
         }
+
         console.log("response from get-shared-document:", data);
         setShareData(data as ShareData);
       } catch (e: any) {
@@ -98,15 +112,6 @@ export default function Share() {
       return (x.version_number || 0) - (y.version_number || 0);
     });
 
-    if (!left.content?.trim() || !right.content?.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Нет текста",
-        description: "Не удалось получить текст одной из версий",
-      });
-      return;
-    }
-
     setComparisonVersions({ version1: left, version2: right });
     setIsComparing(true);
   };
@@ -125,7 +130,7 @@ export default function Share() {
       ) : (
         <>
           <h1 className="text-xl font-bold mb-4">
-            {shareData?.documentData?.title || "Документ"}
+            {shareData?.documentData.title || "Документ"}
           </h1>
           <button
             className="btn btn-primary mb-2"
