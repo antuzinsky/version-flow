@@ -219,24 +219,83 @@ const Share: React.FC = () => {
   };
 
   const handleAcceptAll = () => {
-    setChanges(prev => prev.map(change => ({ ...change, status: 'accepted' as const })));
+    setChanges(prev => prev.map(change => ({ 
+      ...change, 
+      status: 'accepted' as const, 
+      choice: 'right' as const,
+      resolved: undefined 
+    })));
   };
 
   const handleRejectAll = () => {
-    setChanges(prev => prev.map(change => ({ ...change, status: 'rejected' as const })));
+    setChanges(prev => prev.map(change => ({ 
+      ...change, 
+      status: 'rejected' as const, 
+      choice: 'left' as const,
+      resolved: undefined 
+    })));
   };
 
   const handleReset = () => {
-    setChanges(prev => prev.map(change => ({ ...change, status: 'pending' as const, modifiedContent: undefined })));
+    setChanges(prev => prev.map(change => ({ 
+      ...change, 
+      status: 'pending' as const, 
+      choice: undefined,
+      resolved: undefined 
+    })));
   };
 
   const handleCreateVersion = () => {
-    // TODO: Implement version creation logic
-    console.log('Creating new version with changes:', changes);
-    // For now, just show a toast
+    if (!shareData || !comparisonVersions) return;
+    
+    // Apply all the changes to create the final content
+    let finalContent = comparisonVersions.version1.content;
+    const lines1 = finalContent.split('\n');
+    const lines2 = comparisonVersions.version2.content.split('\n');
+    
+    // For now, we'll use a simple approach - if user accepted changes, use version2, else version1
+    const acceptedChanges = changes.filter(c => c.status === 'accepted').length;
+    const totalChanges = changes.length;
+    
+    if (acceptedChanges > totalChanges / 2) {
+      finalContent = comparisonVersions.version2.content;
+    }
+    
+    // Apply any custom edits
+    changes.forEach(change => {
+      if (change.status === 'edited' && change.resolved) {
+        // This is a simplified approach - in a real implementation you'd need more sophisticated content merging
+        finalContent = finalContent.replace(change.content, change.resolved);
+      }
+    });
+    
+    // Create a new version object
+    const newVersion = {
+      id: `merged-${Date.now()}`,
+      content: finalContent,
+      version_number: Math.max(...(shareData.versions?.map(v => v.version_number || 0) || [0])) + 1,
+      created_by: 'User (Merged)',
+      created_at: new Date().toISOString(),
+      isLatest: false
+    };
+    
+    // Add to versions and update UI
+    if (shareData.versions) {
+      shareData.versions.push(newVersion);
+    }
+    
+    // Exit comparison mode and select the new version
+    setIsComparing(false);
+    setComparisonVersions(null);
+    setShowChangesPanel(false);
+    setSelectedVersions(new Set());
+    setChanges([]);
+    setSelectedVersionId(newVersion.id);
+    setCurrentContent(newVersion.content);
+    
     toast({
       title: "Версия создана",
-      description: "Новая версия документа успешно создана с принятыми изменениями.",
+      description: `Новая версия V${newVersion.version_number} создана с принятыми изменениями.`,
     });
   };
 
