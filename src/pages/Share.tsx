@@ -13,10 +13,12 @@ type Version = {
 type VersionWithLatest = Version & { isLatest?: boolean };
 
 type ShareData = {
-  token: string;
-  can_edit: boolean;
-  expires_at: string;
-  share_type: string;
+  share: {
+    token: string;
+    can_edit: boolean;
+    expires_at: string;
+    share_type: string;
+  };
   documentData: {
     id: string;
     title: string;
@@ -38,56 +40,36 @@ export default function Share() {
   const [isComparing, setIsComparing] = useState(false);
 
   useEffect(() => {
-  (async () => {
-  const token = new URLSearchParams(window.location.search).get("token");
-  console.log("token from URL:", token);
-  if (!token) return;
+    (async () => {
+      const token = new URLSearchParams(window.location.search).get("token");
+      console.log("token from URL:", token);
+      if (!token) return;
 
-  try {
-    const res = await fetch(
-      `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document?token=${token}`
-    );
-    const data = await res.json();
-    console.log("response from edge:", data);
-
-    if (data.error) {
-      toast({ variant: "destructive", title: "Ошибка", description: data.error });
-      return;
-    }
-    setShareData(data as ShareData);
-  } catch (e: any) {
-    toast({
-      variant: "destructive",
-      title: "Ошибка сети",
-      description: e.message,
-    });
-  }
-})();
-
-  // Дозагружаем контент версии, если он пустой
-  async function ensureVersionContent(v: VersionWithLatest): Promise<VersionWithLatest> {
-    if (v.isLatest) return v;
-    if (v.content && v.content.trim() !== "") return v;
-
-    try {
-      const res = await fetch(
-        "https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-document-version",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ versionId: v.id }),
-        }
-      );
-      if (res.ok) {
+      try {
+        const res = await fetch(
+          `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document?token=${token}`
+        );
         const data = await res.json();
-        if (data?.content) return { ...v, content: data.content };
-      }
-    } catch (e) {
-      console.warn("Не удалось загрузить контент версии", e);
-    }
+        console.log("response from edge:", data);
 
-    return v;
-  }
+        if (data.error) {
+          toast({
+            variant: "destructive",
+            title: "Ошибка",
+            description: data.error,
+          });
+          return;
+        }
+        setShareData(data as ShareData);
+      } catch (e: any) {
+        toast({
+          variant: "destructive",
+          title: "Ошибка сети",
+          description: e.message,
+        });
+      }
+    })();
+  }, []);
 
   const handleCompare = async () => {
     if (selectedVersions.size !== 2 || !shareData) return;
@@ -109,9 +91,13 @@ export default function Share() {
     let b = allVersionsWithLatest.find((v) => v.id === versionIds[1]);
     if (!a || !b) return;
 
-    [a, b] = await Promise.all([ensureVersionContent(a), ensureVersionContent(b)]);
+    const [left, right] = [a, b].sort((x, y) => {
+      if (x.isLatest && !y.isLatest) return 1;
+      if (!x.isLatest && y.isLatest) return -1;
+      return (x.version_number || 0) - (y.version_number || 0);
+    });
 
-    if (!a.content?.trim() || !b.content?.trim()) {
+    if (!left.content?.trim() || !right.content?.trim()) {
       toast({
         variant: "destructive",
         title: "Нет текста",
@@ -119,12 +105,6 @@ export default function Share() {
       });
       return;
     }
-
-    const [left, right] = [a, b].sort((x, y) => {
-      if (x.isLatest && !y.isLatest) return 1;
-      if (!x.isLatest && y.isLatest) return -1;
-      return (x.version_number || 0) - (y.version_number || 0);
-    });
 
     setComparisonVersions({ version1: left, version2: right });
     setIsComparing(true);
@@ -144,7 +124,7 @@ export default function Share() {
       ) : (
         <>
           <h1 className="text-xl font-bold mb-4">
-            {shareData?.documentData.title || "Документ"}
+            {shareData?.documentData?.title || "Документ"}
           </h1>
           <button
             className="btn btn-primary mb-2"
@@ -169,8 +149,11 @@ export default function Share() {
                       });
                     }}
                   />
-                  Версия {v.version_number} ({new Date(v.created_at).toLocaleString()})
-                  {!v.content && <span className="ml-2 text-red-500">(нет текста)</span>}
+                  Версия {v.version_number} (
+                  {new Date(v.created_at).toLocaleString()})
+                  {!v.content && (
+                    <span className="ml-2 text-red-500">(нет текста)</span>
+                  )}
                 </label>
               </li>
             ))}
