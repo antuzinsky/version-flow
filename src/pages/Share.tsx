@@ -58,6 +58,13 @@ const Share: React.FC = () => {
   const [isComparing, setIsComparing] = useState(false);
   const [comparisonVersions, setComparisonVersions] = useState<{version1: VersionWithLatest, version2: VersionWithLatest} | null>(null);
   const [showChangesPanel, setShowChangesPanel] = useState(false);
+  const [changes, setChanges] = useState<Array<{
+    id: number;
+    type: 'added' | 'removed';
+    content: string;
+    status: 'pending' | 'accepted' | 'rejected' | 'modified';
+    modifiedContent?: string;
+  }>>([]);
 
   useEffect(() => {
     document.title = "Shared Document · B2B Docs";
@@ -207,6 +214,41 @@ const Share: React.FC = () => {
     setComparisonVersions(null);
     setShowChangesPanel(false);
     setSelectedVersions(new Set());
+    setChanges([]);
+  };
+
+  const handleAcceptAll = () => {
+    setChanges(prev => prev.map(change => ({ ...change, status: 'accepted' as const })));
+  };
+
+  const handleRejectAll = () => {
+    setChanges(prev => prev.map(change => ({ ...change, status: 'rejected' as const })));
+  };
+
+  const handleReset = () => {
+    setChanges(prev => prev.map(change => ({ ...change, status: 'pending' as const, modifiedContent: undefined })));
+  };
+
+  const handleCreateVersion = () => {
+    // TODO: Implement version creation logic
+    console.log('Creating new version with changes:', changes);
+    // For now, just show a toast
+    toast({
+      title: "Версия создана",
+      description: "Новая версия документа успешно создана с принятыми изменениями.",
+    });
+  };
+
+  const handleNavigateToChange = (changeId: number) => {
+    const element = document.getElementById(`change-${changeId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the change briefly
+      element.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+      setTimeout(() => {
+        element.style.backgroundColor = '';
+      }, 2000);
+    }
   };
 
   if (loading) {
@@ -457,6 +499,7 @@ const Share: React.FC = () => {
                 <DocumentComparison 
                   version1={comparisonVersions.version1}
                   version2={comparisonVersions.version2}
+                  onChangesUpdate={setChanges}
                 />
               </div>
             </>
@@ -538,7 +581,13 @@ const Share: React.FC = () => {
             <ChangesPanel
               version1Content={comparisonVersions.version1.content}
               version2Content={comparisonVersions.version2.content}
+              changes={changes}
               onClose={() => setShowChangesPanel(false)}
+              onAcceptAll={handleAcceptAll}
+              onRejectAll={handleRejectAll}
+              onReset={handleReset}
+              onCreateVersion={handleCreateVersion}
+              onNavigateToChange={handleNavigateToChange}
             />
           </aside>
         )}

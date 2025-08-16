@@ -8,25 +8,47 @@ import { Separator } from "@/components/ui/separator";
 import { diffLines } from "diff";
 import { Bot, Send, FileText, Plus, Minus } from "lucide-react";
 
+interface Change {
+  id: number;
+  type: 'added' | 'removed';
+  content: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'modified';
+  modifiedContent?: string;
+}
+
 interface ChangesPanelProps {
   version1Content: string;
   version2Content: string;
+  changes: Change[];
   onClose: () => void;
+  onAcceptAll: () => void;
+  onRejectAll: () => void;
+  onReset: () => void;
+  onCreateVersion: () => void;
+  onNavigateToChange: (changeId: number) => void;
 }
 
-const ChangesPanel: React.FC<ChangesPanelProps> = ({ version1Content, version2Content, onClose }) => {
+const ChangesPanel: React.FC<ChangesPanelProps> = ({ 
+  version1Content, 
+  version2Content, 
+  changes, 
+  onClose,
+  onAcceptAll,
+  onRejectAll,
+  onReset,
+  onCreateVersion,
+  onNavigateToChange
+}) => {
   const [aiQuestion, setAiQuestion] = useState("");
   const [chatHistory, setChatHistory] = useState<Array<{ type: 'user' | 'ai', message: string }>>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const diff = diffLines(version1Content, version2Content);
+  const acceptedCount = changes.filter(c => c.status === 'accepted').length;
+  const rejectedCount = changes.filter(c => c.status === 'rejected').length;
+  const modifiedCount = changes.filter(c => c.status === 'modified').length;
+  const pendingCount = changes.filter(c => c.status === 'pending').length;
   
-  const changes = diff.filter(part => part.added || part.removed).map((part, index) => ({
-    id: index,
-    type: part.added ? 'added' : 'removed',
-    content: part.value.trim(),
-    lineCount: part.value.split('\n').length - 1
-  }));
+  const allProcessed = pendingCount === 0;
 
   const handleSendQuestion = () => {
     if (!aiQuestion.trim()) return;
@@ -137,47 +159,92 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({ version1Content, version2Co
         <Separator />
 
         {/* Summary */}
-        <div className="space-y-2">
-          <h3 className="font-medium text-sm">Сводка изменений:</h3>
-          <div className="flex gap-2">
-            <Badge variant="outline" className="text-green-600 border-green-200">
-              <Plus className="h-3 w-3 mr-1" />
-              {changes.filter(c => c.type === 'added').length} добавлено
-            </Badge>
-            <Badge variant="outline" className="text-red-600 border-red-200">
-              <Minus className="h-3 w-3 mr-1" />
-              {changes.filter(c => c.type === 'removed').length} удалено
-            </Badge>
+        <div className="space-y-3">
+          <h3 className="font-medium text-sm">Статистика:</h3>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>Принято: {acceptedCount}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span>Отклонено: {rejectedCount}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span>Изменено: {modifiedCount}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span>Ожидают: {pendingCount}</span>
+            </div>
           </div>
+          
+          {/* Action buttons */}
+          <div className="flex gap-2 text-xs">
+            <Button variant="outline" size="sm" onClick={onAcceptAll} disabled={pendingCount === 0}>
+              Принять всё
+            </Button>
+            <Button variant="outline" size="sm" onClick={onRejectAll} disabled={pendingCount === 0}>
+              Отклонить всё
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={onReset} className="w-full text-xs">
+            Сбросить
+          </Button>
         </div>
 
         <Separator />
 
-        {/* Changes List */}
-        <div className="flex-1">
-          <h3 className="font-medium text-sm mb-3">Список изменений:</h3>
+        {/* Changes Navigation */}
+        <div className="flex-1 space-y-3">
+          <h3 className="font-medium text-sm">Навигация по изменениям:</h3>
           <ScrollArea className="h-48">
             <div className="space-y-2">
-              {changes.map((change) => (
+              {changes.map((change, index) => (
                 <div
                   key={change.id}
-                  className={`p-2 rounded border text-xs ${
-                    change.type === 'added'
+                  className={`p-2 rounded border text-xs cursor-pointer transition-colors ${
+                    change.status === 'accepted'
                       ? 'bg-green-50 border-green-200 text-green-800'
-                      : 'bg-red-50 border-red-200 text-red-800'
+                      : change.status === 'rejected'
+                      ? 'bg-red-50 border-red-200 text-red-800'
+                      : change.status === 'modified'
+                      ? 'bg-blue-50 border-blue-200 text-blue-800'
+                      : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
                   }`}
+                  onClick={() => onNavigateToChange(change.id)}
                 >
-                  <div className="font-medium mb-1">
-                    {change.type === 'added' ? 'Добавлено:' : 'Удалено:'}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium">
+                      #{index + 1} {change.status === 'accepted' ? 'Принято' : change.status === 'rejected' ? 'Отклонено' : change.status === 'modified' ? 'Изменено' : 'Ожидает'}
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {change.type === 'added' ? '+' : '-'}
+                    </Badge>
                   </div>
-                  <div className="text-xs opacity-80 line-clamp-3">
-                    {change.content.substring(0, 100)}
-                    {change.content.length > 100 ? '...' : ''}
+                  <div className="text-xs opacity-80 line-clamp-2">
+                    {change.status === 'modified' && change.modifiedContent 
+                      ? change.modifiedContent.substring(0, 80)
+                      : change.content.substring(0, 80)}
+                    {(change.status === 'modified' && change.modifiedContent ? change.modifiedContent.length > 80 : change.content.length > 80) ? '...' : ''}
                   </div>
                 </div>
               ))}
             </div>
           </ScrollArea>
+        </div>
+
+        {/* Create Version Button */}
+        <div className="pt-3 border-t border-border">
+          <Button 
+            onClick={onCreateVersion}
+            disabled={!allProcessed}
+            className="w-full"
+            variant={allProcessed ? "default" : "outline"}
+          >
+            {allProcessed ? 'Создать версию' : `Осталось: ${pendingCount}`}
+          </Button>
         </div>
       </CardContent>
     </Card>
