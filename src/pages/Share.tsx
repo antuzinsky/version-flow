@@ -63,11 +63,37 @@ const Share: React.FC = () => {
 
       console.log('Fetching shared document with token:', token);
 
+      // Test direct call to edge function URL first
+      const directUrl = `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document`;
+      console.log('Direct function URL:', directUrl);
+
+      try {
+        const directResponse = await fetch(directUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token })
+        });
+        console.log('Direct fetch response status:', directResponse.status);
+        const directData = await directResponse.json();
+        console.log('Direct fetch data:', directData);
+        
+        if (directResponse.ok) {
+          setShareData(directData);
+          setCurrentContent(directData.documentData.content || 'Test content');
+          return;
+        }
+      } catch (directError) {
+        console.error('Direct fetch failed:', directError);
+      }
+
+      // Fallback to supabase client
       const { data, error: functionError } = await supabase.functions.invoke('get-shared-document', {
         body: { token }
       });
 
-      console.log('Function response:', { data, functionError });
+      console.log('Supabase client response:', { data, functionError });
 
       if (functionError) {
         console.error('Function error:', functionError);

@@ -4,154 +4,76 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
 }
 
 Deno.serve(async (req) => {
+  console.log('Function called with method:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('Processing request...');
+    
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? 'https://nmcipsyyhnlquloudalf.supabase.co',
+      'https://nmcipsyyhnlquloudalf.supabase.co',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { token } = await req.json();
+    const body = await req.json();
+    const { token } = body;
+    
+    console.log('Token received:', token);
 
     if (!token) {
+      console.log('No token provided');
       return new Response(
         JSON.stringify({ error: 'Token is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Fetching shared document with token: ${token}`);
+    // Test the service role key
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    console.log('Service key available:', !!serviceKey);
+    console.log('Service key length:', serviceKey?.length || 0);
 
-    // Get share record with document details
-    const { data: shareData, error: shareError } = await supabase
+    // Simple query test
+    const { data: testData, error: testError } = await supabase
       .from('shares')
-      .select(`
-        token,
-        can_edit,
-        expires_at,
-        share_type,
-        documents (
-          id,
-          title,
-          file_name,
-          file_path,
-          mime_type,
-          projects (
-            name,
-            clients (
-              name
-            )
-          )
-        )
-      `)
+      .select('token, share_type')
       .eq('token', token)
-      .maybeSingle();
+      .single();
 
-    if (shareError) {
-      console.error('Share query error:', shareError);
+    console.log('Test query result:', { testData, testError });
+
+    if (testError) {
+      console.error('Database error:', testError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch share data' }),
+        JSON.stringify({ error: 'Database error', details: testError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!shareData) {
+    if (!testData) {
+      console.log('No share found');
       return new Response(
         JSON.stringify({ error: 'Share not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if share has expired
-    if (shareData.expires_at && new Date(shareData.expires_at) < new Date()) {
-      return new Response(
-        JSON.stringify({ error: 'Share has expired' }),
-        { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get document content if file exists
-    let content = '';
-    const doc = shareData.documents;
-
-    if (doc.file_path) {
-      try {
-        const { data: fileData, error: downloadError } = await supabase.storage
-          .from('documents')
-          .download(doc.file_path);
-
-        if (downloadError) {
-          console.error('File download error:', downloadError);
-          content = 'Error loading document content.';
-        } else if (doc.file_name?.endsWith('.docx')) {
-          // For .docx files, we can't parse them server-side easily
-          // We'll let the client handle this
-          content = '[DOCX file - content will be parsed on client side]';
-        } else {
-          // Try to read as text
-          content = await fileData.text();
-        }
-      } catch (err) {
-        console.error('File processing error:', err);
-        content = 'Error processing document content.';
-      }
-    } else {
-      content = 'No file uploaded for this document.';
-    }
-
-    // Get version content based on share type
-    let versions = [];
-
-    if (shareData.share_type === 'all_versions') {
-      // Get all versions for version switching
-      const { data: allVersions } = await supabase
-        .from('document_versions')
-        .select('id, version_number, content, created_at, created_by')
-        .eq('document_id', doc.id)
-        .order('created_at', { ascending: false });
-      
-      versions = allVersions || [];
-    }
-
-    // Get latest version content as fallback
-    const { data: versionData } = await supabase
-      .from('document_versions')
-      .select('content')
-      .eq('document_id', doc.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const finalContent = versionData?.content || content;
-
+    // Return success response
     const response = {
-      share: {
-        token: shareData.token,
-        can_edit: shareData.can_edit,
-        expires_at: shareData.expires_at,
-        share_type: shareData.share_type,
-      },
-      documentData: {
-        id: doc.id,
-        title: doc.title,
-        file_name: doc.file_name,
-        content: finalContent,
-        project: doc.projects?.name,
-        client: doc.projects?.clients?.name,
-      },
-      versions: versions
+      share: { token: testData.token, share_type: testData.share_type },
+      documentData: { title: 'Test Document' },
+      versions: []
     };
 
-    console.log(`Successfully fetched shared document: ${doc.title}`);
-
+    console.log('Returning success response');
     return new Response(
       JSON.stringify(response),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -160,7 +82,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
