@@ -509,9 +509,10 @@ const Share: React.FC = () => {
                           </p>
                         </div>
                       ) : (
-                        <div className="whitespace-pre-wrap text-base leading-relaxed">
-                          {currentContent || "This document appears to be empty."}
-                        </div>
+                        <div 
+                          className="whitespace-pre-wrap text-base leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: currentContent || "This document appears to be empty." }}
+                        />
                       )}
                     </div>
                   </CardContent>

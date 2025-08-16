@@ -187,9 +187,10 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             <div className="text-muted-foreground text-sm mb-4">
               This central area is the document editor. Click the title to edit. Below are placeholder lines to suggest text blocks.
             </div>
-            <div className="whitespace-pre-wrap text-base leading-relaxed">
-              {content || "Loading document content..."}
-            </div>
+            <div 
+              className="whitespace-pre-wrap text-base leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: content || "Loading document content..." }}
+            />
           </div>
         )}
       </div>
