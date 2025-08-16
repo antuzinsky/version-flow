@@ -16,12 +16,8 @@ interface ChangesPanelProps {
 
 const ChangesPanel: React.FC<ChangesPanelProps> = ({ version1Content, version2Content, onClose }) => {
   const [aiQuestion, setAiQuestion] = useState("");
-  const [chatHistory, setChatHistory] = useState<Array<{ type: 'user' | 'ai', message: string }>>([
-    {
-      type: 'ai',
-      message: 'Я проанализировал изменения в документе. Вижу несколько ключевых правок в тексте. Можете задать мне любые вопросы об изменениях.'
-    }
-  ]);
+  const [chatHistory, setChatHistory] = useState<Array<{ type: 'user' | 'ai', message: string }>>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const diff = diffLines(version1Content, version2Content);
   
@@ -43,6 +39,21 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({ version1Content, version2Co
     setAiQuestion("");
   };
 
+  const handleAnalyzeChanges = () => {
+    setIsAnalyzing(true);
+    // Simulate analysis
+    setTimeout(() => {
+      setChatHistory(prev => [
+        ...prev,
+        { 
+          type: 'ai', 
+          message: 'Анализ изменений:\n\n• Изменены ключевые пункты договора\n• Обновлены финансовые условия\n• Добавлены новые обязательства\n\nЗадайте мне вопросы для детального разбора.' 
+        }
+      ]);
+      setIsAnalyzing(false);
+    }, 1500);
+  };
+
   return (
     <Card className="w-80 h-full flex flex-col">
       <CardHeader className="pb-4">
@@ -58,6 +69,73 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({ version1Content, version2Co
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col gap-4 p-4">
+        {/* AI Assistant - moved to top */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-sm flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              AI Ассистент
+            </h3>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleAnalyzeChanges}
+              disabled={isAnalyzing}
+              className="text-xs"
+            >
+              {isAnalyzing ? 'Анализирую...' : 'Анализировать изменения'}
+            </Button>
+          </div>
+          
+          <ScrollArea className="h-32 mb-3">
+            <div className="space-y-2">
+              {chatHistory.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-4">
+                  Нажмите "Анализировать изменения" или задайте вопрос
+                </div>
+              ) : (
+                chatHistory.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`p-2 rounded text-xs whitespace-pre-line ${
+                      message.type === 'ai'
+                        ? 'bg-muted text-muted-foreground'
+                        : 'bg-primary text-primary-foreground ml-4'
+                    }`}
+                  >
+                    {message.message}
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="flex gap-2">
+            <Textarea
+              placeholder="Задайте вопрос об изменениях..."
+              value={aiQuestion}
+              onChange={(e) => setAiQuestion(e.target.value)}
+              className="text-xs resize-none min-h-[60px]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendQuestion();
+                }
+              }}
+            />
+            <Button 
+              size="sm" 
+              onClick={handleSendQuestion}
+              disabled={!aiQuestion.trim()}
+              className="px-2"
+            >
+              <Send className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        <Separator />
+
         {/* Summary */}
         <div className="space-y-2">
           <h3 className="font-medium text-sm">Сводка изменений:</h3>
@@ -100,56 +178,6 @@ const ChangesPanel: React.FC<ChangesPanelProps> = ({ version1Content, version2Co
               ))}
             </div>
           </ScrollArea>
-        </div>
-
-        <Separator />
-
-        {/* AI Assistant */}
-        <div className="flex-1 flex flex-col">
-          <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
-            <Bot className="h-4 w-4" />
-            AI Ассистент
-          </h3>
-          
-          <ScrollArea className="flex-1 mb-3 min-h-32">
-            <div className="space-y-2">
-              {chatHistory.map((message, index) => (
-                <div
-                  key={index}
-                  className={`p-2 rounded text-xs ${
-                    message.type === 'ai'
-                      ? 'bg-muted text-muted-foreground'
-                      : 'bg-primary text-primary-foreground ml-4'
-                  }`}
-                >
-                  {message.message}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <div className="flex gap-2">
-            <Textarea
-              placeholder="Задайте вопрос об изменениях..."
-              value={aiQuestion}
-              onChange={(e) => setAiQuestion(e.target.value)}
-              className="text-xs resize-none min-h-[60px]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendQuestion();
-                }
-              }}
-            />
-            <Button 
-              size="sm" 
-              onClick={handleSendQuestion}
-              disabled={!aiQuestion.trim()}
-              className="px-2"
-            >
-              <Send className="h-3 w-3" />
-            </Button>
-          </div>
         </div>
       </CardContent>
     </Card>
