@@ -50,6 +50,11 @@ const Share: React.FC = () => {
   }, []);
 
   useEffect(() => {
+  console.log("BUILD: share-layout-v2"); // 🔥 проверочный маркер
+}, []);
+
+
+  useEffect(() => {
     if (!token) {
       setError("Invalid share link");
       setLoading(false);
