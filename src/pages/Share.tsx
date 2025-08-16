@@ -3,10 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/components/ui/use-toast';
 import DocumentComparison from '@/components/DocumentComparison';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!
-);
+const { token } = params; // токен из query string
+const res = await fetch(`https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ token }),
+});
+
+const data = await res.json();
 
 type Version = {
   id: string;
