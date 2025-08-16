@@ -38,32 +38,31 @@ export default function Share() {
   const [isComparing, setIsComparing] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const token = new URLSearchParams(window.location.search).get("token");
-      if (!token) return;
+  (async () => {
+  const token = new URLSearchParams(window.location.search).get("token");
+  console.log("token from URL:", token);
+  if (!token) return;
 
-      try {
-        const res = await fetch(
-          "https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
-          }
-        );
+  try {
+    const res = await fetch(
+      `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document?token=${token}`
+    );
+    const data = await res.json();
+    console.log("response from edge:", data);
 
-        if (!res.ok) throw new Error(`Ошибка загрузки: ${res.status}`);
-        const data = await res.json();
-        setShareData(data as ShareData);
-      } catch (e: any) {
-        toast({
-          variant: "destructive",
-          title: "Ошибка",
-          description: e.message || "Не удалось загрузить документ",
-        });
-      }
-    })();
-  }, []);
+    if (data.error) {
+      toast({ variant: "destructive", title: "Ошибка", description: data.error });
+      return;
+    }
+    setShareData(data as ShareData);
+  } catch (e: any) {
+    toast({
+      variant: "destructive",
+      title: "Ошибка сети",
+      description: e.message,
+    });
+  }
+})();
 
   // Дозагружаем контент версии, если он пустой
   async function ensureVersionContent(v: VersionWithLatest): Promise<VersionWithLatest> {
