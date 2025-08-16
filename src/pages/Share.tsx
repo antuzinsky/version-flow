@@ -63,17 +63,13 @@ const Share: React.FC = () => {
 
       console.log('Fetching shared document with token:', token);
 
-      // Test direct call to edge function URL first
-      const directUrl = `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document`;
+      // Test direct call to edge function URL first (GET - avoids preflight)
+      const directUrl = `https://nmcipsyyhnlquloudalf.supabase.co/functions/v1/get-shared-document?token=${encodeURIComponent(token)}`;
       console.log('Direct function URL:', directUrl);
 
       try {
         const directResponse = await fetch(directUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token })
+          method: 'GET',
         });
         console.log('Direct fetch response status:', directResponse.status);
         const directData = await directResponse.json();
