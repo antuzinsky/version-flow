@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Building, Folder, Calendar, AlertCircle, GitCompare } from "lucide-react";
+import { FileText, Building, Folder, Calendar, AlertCircle, GitCompare, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
+import DocumentComparison from "@/components/comparison/DocumentComparison";
+import ChangesPanel from "@/components/comparison/ChangesPanel";
 
 interface ShareData {
   share: {
@@ -34,6 +36,15 @@ interface ShareData {
   }>;
 }
 
+interface VersionWithLatest {
+  id: string;
+  version_number?: number;
+  content: string;
+  created_at: string;
+  created_by: string;
+  isLatest?: boolean;
+}
+
 const Share: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const { toast } = useToast();
@@ -44,6 +55,9 @@ const Share: React.FC = () => {
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [currentContent, setCurrentContent] = useState<string>("");
   const [selectedVersions, setSelectedVersions] = useState<Set<string>>(new Set());
+  const [isComparing, setIsComparing] = useState(false);
+  const [comparisonVersions, setComparisonVersions] = useState<{version1: VersionWithLatest, version2: VersionWithLatest} | null>(null);
+  const [showChangesPanel, setShowChangesPanel] = useState(false);
 
   useEffect(() => {
     document.title = "Shared Document · B2B Docs";
@@ -152,6 +166,49 @@ const Share: React.FC = () => {
     setSelectedVersions(new Set());
   };
 
+  const handleCompare = () => {
+    if (selectedVersions.size !== 2) return;
+    
+    const versionIds = Array.from(selectedVersions);
+    const allVersionsWithLatest: VersionWithLatest[] = [
+      { 
+        id: 'latest', 
+        content: shareData?.documentData.content || '', 
+        version_number: 999,
+        created_by: shareData?.documentData.client || '',
+        created_at: new Date().toISOString(),
+        isLatest: true
+      },
+      ...(shareData?.versions || []).map(v => ({ ...v, isLatest: false }))
+    ];
+    
+    const version1 = allVersionsWithLatest.find(v => v.id === versionIds[0]);
+    const version2 = allVersionsWithLatest.find(v => v.id === versionIds[1]);
+    
+    if (version1 && version2) {
+      // Sort by version number or latest flag to show older version on left
+      const sortedVersions = [version1, version2].sort((a, b) => {
+        if (a.isLatest) return 1;
+        if (b.isLatest) return -1;
+        return (a.version_number || 0) - (b.version_number || 0);
+      });
+      
+      setComparisonVersions({
+        version1: sortedVersions[0],
+        version2: sortedVersions[1]
+      });
+      setIsComparing(true);
+      setShowChangesPanel(true);
+    }
+  };
+
+  const exitComparison = () => {
+    setIsComparing(false);
+    setComparisonVersions(null);
+    setShowChangesPanel(false);
+    setSelectedVersions(new Set());
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -245,7 +302,7 @@ const Share: React.FC = () => {
 
       <div className="flex min-h-[calc(100vh-73px)]">
         {/* Left Sidebar - Versions Panel */}
-        {showVersions && (
+        {showVersions && !isComparing && (
           <aside className="w-80 border-r border-border bg-card/30">
             <div className="p-4 border-b border-border">
               <div className="flex items-center justify-between mb-4">
@@ -280,7 +337,8 @@ const Share: React.FC = () => {
                   variant="outline" 
                   size="sm"
                   className="flex items-center gap-1"
-                  disabled={selectedVersions.size < 2}
+                  disabled={selectedVersions.size !== 2}
+                  onClick={handleCompare}
                 >
                   <GitCompare className="h-3 w-3" />
                   Compare
@@ -368,75 +426,121 @@ const Share: React.FC = () => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-hidden">
-          <div className="h-full overflow-auto">
-            <div className="p-6 max-w-4xl mx-auto">
-              {/* Document Info */}
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h1 className="text-3xl font-bold mb-2">
-                      {documentData.title} — {selectedVersion ? `V${selectedVersion.version_number}` : 'Latest (Compiled)'}
-                    </h1>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Building className="h-4 w-4" />
-                        <span>{documentData.client}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Folder className="h-4 w-4" />
-                        <span>{documentData.project}</span>
-                      </div>
-                      {documentData.file_name && (
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-4 w-4" />
-                          <span>{documentData.file_name}</span>
-                        </div>
-                      )}
-                    </div>
+        <main className={`flex-1 overflow-hidden ${isComparing ? 'flex' : ''}`}>
+          {isComparing && comparisonVersions ? (
+            <>
+              {/* Comparison Header */}
+              <div className="absolute top-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-b border-border z-20 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-lg font-semibold">Сравнение версий</h2>
+                    <Badge variant="secondary">
+                      {comparisonVersions.version1.isLatest ? 'Latest' : `V${comparisonVersions.version1.version_number}`} 
+                      {' vs '}
+                      {comparisonVersions.version2.isLatest ? 'Latest' : `V${comparisonVersions.version2.version_number}`}
+                    </Badge>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Последнее обновление • {selectedVersion ? new Date(selectedVersion.created_at).toLocaleDateString() : new Date().toLocaleDateString()} • автор: {selectedVersion?.created_by || documentData.client}
-                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={exitComparison}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Выйти из сравнения
+                  </Button>
                 </div>
               </div>
 
-              {/* Document Content */}
-              <Card>
-                <CardContent className="p-8">
-                  <div className="prose max-w-none">
-                    {currentContent.includes('[DOCX file') ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-medium mb-2">DOCX File Shared</p>
-                        <p className="text-sm">
-                          This is a Microsoft Word document. The original file formatting cannot be displayed in the browser.
-                        </p>
-                        <p className="text-sm mt-2">
-                          File: <span className="font-mono">{documentData.file_name}</span>
-                        </p>
+              {/* Comparison Content */}
+              <div className="flex-1 pt-20 p-6">
+                <DocumentComparison 
+                  version1={comparisonVersions.version1}
+                  version2={comparisonVersions.version2}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="h-full overflow-auto">
+              <div className="p-6 max-w-4xl mx-auto">
+                {/* Document Info */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h1 className="text-3xl font-bold mb-2">
+                        {documentData.title} — {selectedVersion ? `V${selectedVersion.version_number}` : 'Latest (Compiled)'}
+                      </h1>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Building className="h-4 w-4" />
+                          <span>{documentData.client}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Folder className="h-4 w-4" />
+                          <span>{documentData.project}</span>
+                        </div>
+                        {documentData.file_name && (
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-4 w-4" />
+                            <span>{documentData.file_name}</span>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="whitespace-pre-wrap text-base leading-relaxed">
-                        {currentContent || "This document appears to be empty."}
-                      </div>
-                    )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Последнее обновление • {selectedVersion ? new Date(selectedVersion.created_at).toLocaleDateString() : new Date().toLocaleDateString()} • автор: {selectedVersion?.created_by || documentData.client}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Footer */}
-              <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-                <p>
-                  Shared via{" "}
-                  <a href="/" className="text-primary hover:underline">
-                    B2B Docs
-                  </a>
-                </p>
-              </footer>
+                {/* Document Content */}
+                <Card>
+                  <CardContent className="p-8">
+                    <div className="prose max-w-none">
+                      {currentContent.includes('[DOCX file') ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p className="text-lg font-medium mb-2">DOCX File Shared</p>
+                          <p className="text-sm">
+                            This is a Microsoft Word document. The original file formatting cannot be displayed in the browser.
+                          </p>
+                          <p className="text-sm mt-2">
+                            File: <span className="font-mono">{documentData.file_name}</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap text-base leading-relaxed">
+                          {currentContent || "This document appears to be empty."}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Footer */}
+                <footer className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
+                  <p>
+                    Shared via{" "}
+                    <a href="/" className="text-primary hover:underline">
+                      B2B Docs
+                    </a>
+                  </p>
+                </footer>
+              </div>
             </div>
-          </div>
+          )}
         </main>
+
+        {/* Right Changes Panel - only in comparison mode */}
+        {isComparing && showChangesPanel && comparisonVersions && (
+          <aside className="w-80 border-l border-border bg-card/30">
+            <ChangesPanel
+              version1Content={comparisonVersions.version1.content}
+              version2Content={comparisonVersions.version2.content}
+              onClose={() => setShowChangesPanel(false)}
+            />
+          </aside>
+        )}
       </div>
     </div>
   );
