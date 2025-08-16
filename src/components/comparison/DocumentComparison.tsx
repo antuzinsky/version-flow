@@ -55,9 +55,8 @@ const DocumentComparison: React.FC<DocumentComparisonProps> = ({ version1, versi
             ? 'bg-green-50 border-l-4 border-green-300 text-green-800'
             : 'text-foreground'
         }`}
-      >
-        {line || '\u00A0'}
-      </div>
+        dangerouslySetInnerHTML={{ __html: line || '\u00A0' }}
+      />
     ));
   };
 
