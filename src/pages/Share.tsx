@@ -183,7 +183,7 @@ const Share: React.FC = () => {
   const { share, documentData, versions } = shareData;
   const expiresAt = share.expires_at ? new Date(share.expires_at) : null;
   const isExpired = expiresAt && expiresAt < new Date();
-  const showVersions = share.share_type === 'all_versions' && versions.length > 0;
+  const showVersions = (versions?.length ?? 0) > 0; // показываем, если версии вообще есть
   const selectedVersion = selectedVersionId ? versions.find(v => v.id === selectedVersionId) : null;
 
   if (isExpired) {
