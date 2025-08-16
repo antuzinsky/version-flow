@@ -31,7 +31,6 @@ const Index: React.FC = () => {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | undefined>();
   const [versions, setVersions] = useState<any[]>([]);
   const [versionContent, setVersionContent] = useState("");
-  const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
 
   // Document editing states
   const [currentDocument, setCurrentDocument] = useState<any>(null);
@@ -78,10 +77,12 @@ const Index: React.FC = () => {
     }
   };
 
-  const refreshProjects = async (_clientId?: string) => {
+  const refreshProjects = async (clientId?: string) => {
+    if (!clientId) return setProjects([]);
     const { data, error } = await supabase
       .from("projects")
       .select("*")
+      .eq("client_id", clientId)
       .order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Failed to load projects", description: error.message, variant: "destructive" });
@@ -91,19 +92,12 @@ const Index: React.FC = () => {
   };
 
   const refreshDocuments = async (projectId?: string) => {
-    let data, error;
-    if (projectId) {
-      ({ data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false }));
-    } else {
-      ({ data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .order("created_at", { ascending: false }));
-    }
+    if (!projectId) return setDocuments([]);
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Failed to load documents", description: error.message, variant: "destructive" });
     } else {
@@ -131,7 +125,6 @@ const Index: React.FC = () => {
   useEffect(() => { refreshDocuments(selectedProjectId); }, [selectedProjectId]);
   useEffect(() => { 
     refreshVersions(selectedDocumentId); 
-    setSelectedVersionId(undefined); // Reset version selection when document changes
     if (selectedDocumentId) {
       const doc = documents.find(d => d.id === selectedDocumentId);
       setCurrentDocument(doc);
@@ -144,15 +137,6 @@ const Index: React.FC = () => {
       setEditMode(false);
     }
   }, [selectedDocumentId, documents]);
-
-  // Load specific version content when version is selected
-  useEffect(() => {
-    if (selectedVersionId) {
-      loadVersionContent(selectedVersionId);
-    } else if (currentDocument) {
-      loadDocumentContent(currentDocument);
-    }
-  }, [selectedVersionId, currentDocument]);
 
   const createClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -292,50 +276,6 @@ const Index: React.FC = () => {
     }
   };
 
-  const loadVersionContent = async (versionId: string) => {
-    const version = versions.find(v => v.id === versionId);
-    if (!version) return;
-
-    // If version has content (text), use it directly
-    if (version.content) {
-      setDocumentContent(version.content);
-      return;
-    }
-
-    // If version has file_path, load from storage
-    if (version.file_path) {
-      try {
-        const { data, error } = await supabase.storage
-          .from("documents")
-          .download(version.file_path);
-
-        if (error) {
-          toast({ title: "Failed to load version", description: error.message, variant: "destructive" });
-          return;
-        }
-
-        // Parse content based on file type
-        if (version.file_path.endsWith('.docx')) {
-          try {
-            const arrayBuffer = await data.arrayBuffer();
-            const result = await mammoth.extractRawText({ arrayBuffer });
-            setDocumentContent(result.value || "Empty version");
-          } catch (err) {
-            setDocumentContent("Error parsing .docx file.");
-          }
-        } else {
-          const text = await data.text();
-          setDocumentContent(text);
-        }
-      } catch (err) {
-        setDocumentContent("Error loading version content.");
-        toast({ title: "Load error", description: "Failed to load version", variant: "destructive" });
-      }
-    } else {
-      setDocumentContent("No content available for this version.");
-    }
-  };
-
   const saveDocumentEdit = async () => {
     if (!userId || !selectedDocumentId || !documentContent.trim()) return;
     
@@ -427,10 +367,13 @@ const Index: React.FC = () => {
   return (
     <div className="h-screen flex bg-background">
       <WorkspacePanel
+        clients={clients}
         projects={projects}
         documents={documents}
+        selectedClientId={selectedClientId}
         selectedProjectId={selectedProjectId}
         selectedDocumentId={selectedDocumentId}
+        onClientSelect={setSelectedClientId}
         onProjectSelect={setSelectedProjectId}
         onDocumentSelect={setSelectedDocumentId}
         onUploadClick={() => setUploadModalOpen(true)}
@@ -451,8 +394,6 @@ const Index: React.FC = () => {
         onRestore={restoreVersion}
         onRefresh={() => refreshVersions(selectedDocumentId)}
         selectedDocumentId={selectedDocumentId}
-        selectedVersionId={selectedVersionId}
-        onVersionSelect={setSelectedVersionId}
       />
 
       <UploadModal
