@@ -60,6 +60,7 @@ export default function Share() {
           });
           return;
         }
+        console.log("response from get-shared-document:", data);
         setShareData(data as ShareData);
       } catch (e: any) {
         toast({
