@@ -23,6 +23,14 @@ export default function DocumentComparison({
   version2,
   onBack,
 }: DocumentComparisonProps) {
+  // Логируем, что именно пойдёт в diff
+  console.log("Comparing contents:", {
+    left: typeof version1.content,
+    right: typeof version2.content,
+    leftSample: typeof version1.content === "string" ? version1.content.slice(0, 100) : version1.content,
+    rightSample: typeof version2.content === "string" ? version2.content.slice(0, 100) : version2.content,
+  });
+
   // хук для управления изменениями
   const {
     changes,
