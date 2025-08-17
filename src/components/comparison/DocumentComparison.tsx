@@ -1,27 +1,108 @@
-// src/components/comparison/DocumentComparison.tsx
 import React from "react";
-import { Change } from "@/types/change";
 import { useDocumentDiff } from "@/hooks/useDocumentDiff";
 import ChangesPanel from "./ChangesPanel";
-import { normalizeContent } from "@/utils/normalizeContent";
+import type { Change } from "@/types/change";
 
-interface DocumentComparisonProps {
-  version1: { content: string };
-  version2: { content: string };
+type DocVersion = {
+  id: string;
+  version_number?: number;
+  created_by?: string;
+  created_at?: string;
+  isLatest?: boolean;
+  content: string; // уже нормализованный текст
+};
+
+interface Props {
+  version1: DocVersion; // старая
+  version2: DocVersion; // новая
   onBack?: () => void;
+}
+
+/**
+ * Рендер одного кусочка дифа в колонке.
+ * Для левой колонки показываем только removed/null.
+ * Для правой — только added/null.
+ */
+function DiffChunk({
+  change,
+  side, // 'left' | 'right'
+  onAccept,
+  onReject,
+}: {
+  change: Change;
+  side: "left" | "right";
+  onAccept: () => void;
+  onReject: () => void;
+}) {
+  const isRemoved = change.type === "removed";
+  const isAdded = change.type === "added";
+  const isNeutral = change.type === null;
+
+  // Лево: показываем нейтральное + удалённое
+  if (side === "left" && !(isNeutral || isRemoved)) return null;
+  // Право: показываем нейтральное + добавленное
+  if (side === "right" && !(isNeutral || isAdded)) return null;
+
+  // Стиль по статусу и типу
+  const base = "px-0.5 rounded";
+  let cls = "";
+  if (isNeutral) {
+    cls = "";
+  } else if (isRemoved && side === "left") {
+    // удалённое (слева)
+    cls =
+      change.status === "accepted"
+        ? "bg-red-50 line-through opacity-70"
+        : change.status === "rejected"
+        ? "bg-transparent opacity-40"
+        : "bg-red-100";
+  } else if (isAdded && side === "right") {
+    // добавленное (справа)
+    cls =
+      change.status === "accepted"
+        ? "bg-green-50"
+        : change.status === "rejected"
+        ? "bg-transparent opacity-40 line-through"
+        : "bg-green-100";
+  }
+
+  const showControls =
+    (side === "left" && isRemoved) || (side === "right" && isAdded);
+
+  return (
+    <span className={`${base} ${cls}`}>
+      {change.content}
+      {showControls && (
+        <span className="ml-1 select-none">
+          {change.status !== "accepted" && (
+            <button
+              className="inline-block text-[11px] px-1 py-[1px] rounded bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={onAccept}
+              title="Принять изменение"
+            >
+              ✓
+            </button>
+          )}
+          {change.status !== "rejected" && (
+            <button
+              className="inline-block text-[11px] px-1 py-[1px] rounded bg-rose-600 text-white hover:bg-rose-700 ml-1"
+              onClick={onReject}
+              title="Отклонить изменение"
+            >
+              ✕
+            </button>
+          )}
+        </span>
+      )}
+    </span>
+  );
 }
 
 export default function DocumentComparison({
   version1,
   version2,
   onBack,
-}: DocumentComparisonProps) {
-  console.log("Comparing contents:", {
-    version1: version1?.content,
-    version2: version2?.content,
-  });
-
-  // считаем diff
+}: Props) {
   const {
     changes,
     applyChange,
@@ -29,97 +110,96 @@ export default function DocumentComparison({
     rejectAll,
     resetAll,
     stats,
-  } = useDocumentDiff(
-    normalizeContent(version1?.content || ""),
-    normalizeContent(version2?.content || "")
-  );
-
-  console.log("Normalized v1:", normalizeContent(version1?.content));
-  console.log("Normalized v2:", normalizeContent(version2?.content));
-  console.log("version1.content type:", typeof version1?.content, version1?.content);
-  console.log("version2.content type:", typeof version2?.content, version2?.content);
-  console.log("Generated changes:", changes);
-  console.log("Stats:", stats);
+  } = useDocumentDiff(version1.content, version2.content);
 
   return (
-    <div className="flex h-full">
-      {/* Левая панель управления изменениями */}
-      <ChangesPanel
-        changes={changes}
-        stats={stats}
-        onApplyAll={applyAll}
-        onRejectAll={rejectAll}
-        onResetAll={resetAll}
-      />
-
-      {/* Правая часть */}
-      <div className="flex-1 p-4 overflow-auto">
+    <div className="grid grid-cols-[1fr_320px] gap-6 h-full">
+      {/* Центр: ДВЕ колонки с текстом (без объединённого вида) */}
+      <main className="p-4 overflow-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">Сравнение документа</h2>
+          <h2 className="text-lg font-bold">
+            Сравнение версий{" "}
+            {version1.isLatest ? "Latest" : `V${version1.version_number ?? "-"}`}{" "}
+            ↔{" "}
+            {version2.isLatest ? "Latest" : `V${version2.version_number ?? "-"}`}
+          </h2>
           {onBack && (
             <button
               className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
               onClick={onBack}
             >
-              ← Назад
+              ← Выйти из сравнения
             </button>
           )}
         </div>
 
-        {/* Отображение обоих документов */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="border rounded p-3 bg-white">
-            <h3 className="font-semibold mb-2">Версия 1</h3>
-            <pre className="whitespace-pre-wrap text-sm text-gray-700">
-              {version1?.content || "— пусто —"}
-            </pre>
-          </div>
+          {/* СТАРАЯ */}
+          <section className="border rounded p-3 bg-white min-h-[60vh]">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold">
+                Старая версия{" "}
+                {version1.isLatest ? "(Latest)" : `V${version1.version_number ?? "-"}`}
+              </h3>
+              <div className="text-xs text-muted-foreground">
+                {version1.created_at
+                  ? new Date(version1.created_at).toLocaleString()
+                  : ""}
+              </div>
+            </div>
 
-          <div className="border rounded p-3 bg-white">
-            <h3 className="font-semibold mb-2">Версия 2</h3>
-            <pre className="whitespace-pre-wrap text-sm text-gray-700">
-              {version2?.content || "— пусто —"}
-            </pre>
-          </div>
-        </div>
-
-        {/* Список diff-изменений */}
-        <div className="mt-6">
-          <h3 className="font-semibold mb-2">Изменения</h3>
-          {changes.length === 0 ? (
-            <p className="text-gray-500">Изменений не найдено</p>
-          ) : (
-            <ul className="space-y-2">
-              {changes.map((change: Change) => (
-                <li
-                  key={change.id}
-                  className={`p-2 rounded border ${
-                    change.type === "added"
-                      ? "bg-green-100 border-green-300"
-                      : "bg-red-100 border-red-300"
-                  }`}
-                >
-                  <span className="font-mono">{change.content}</span>
-                  <div className="mt-1 space-x-2">
-                    <button
-                      className="px-2 py-1 text-sm bg-green-500 text-white rounded"
-                      onClick={() => applyChange(change.id, "accepted")}
-                    >
-                      Принять
-                    </button>
-                    <button
-                      className="px-2 py-1 text-sm bg-red-500 text-white rounded"
-                      onClick={() => applyChange(change.id, "rejected")}
-                    >
-                      Отклонить
-                    </button>
-                  </div>
-                </li>
+            <div className="whitespace-pre-wrap leading-7 text-[15px]">
+              {changes.map((ch) => (
+                <DiffChunk
+                  key={`L-${ch.id}`}
+                  change={ch}
+                  side="left"
+                  onAccept={() => applyChange(ch.id, "accepted")}
+                  onReject={() => applyChange(ch.id, "rejected")}
+                />
               ))}
-            </ul>
-          )}
+            </div>
+          </section>
+
+          {/* НОВАЯ */}
+          <section className="border rounded p-3 bg-white min-h-[60vh]">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold">
+                Новая версия{" "}
+                {version2.isLatest ? "(Latest)" : `V${version2.version_number ?? "-"}`}
+              </h3>
+              <div className="text-xs text-muted-foreground">
+                {version2.created_at
+                  ? new Date(version2.created_at).toLocaleString()
+                  : ""}
+              </div>
+            </div>
+
+            <div className="whitespace-pre-wrap leading-7 text-[15px]">
+              {changes.map((ch) => (
+                <DiffChunk
+                  key={`R-${ch.id}`}
+                  change={ch}
+                  side="right"
+                  onAccept={() => applyChange(ch.id, "accepted")}
+                  onReject={() => applyChange(ch.id, "rejected")}
+                />
+              ))}
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
+
+      {/* ПРАВЫЙ сайдбар: Одна панель изменений */}
+      <aside className="border-l bg-gray-50 p-4">
+        <ChangesPanel
+          changes={changes}
+          stats={stats}
+          onApplyAll={applyAll}
+          onRejectAll={rejectAll}
+          onResetAll={resetAll}
+        />
+      </aside>
     </div>
   );
 }
