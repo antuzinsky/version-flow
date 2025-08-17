@@ -5,6 +5,7 @@ import PreviewPanel from "./PreviewPanel";
 import type { Change } from "@/types/change";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 type DocVersion = {
   id: string;
@@ -37,7 +38,7 @@ function DiffChunk({
   const isRemoved = change.type === "removed";
   const isAdded = change.type === "added";
   const isNeutral = change.type === null;
-
+  
   if (side === "left" && !(isNeutral || isRemoved)) return null;
   if (side === "right" && !(isNeutral || isAdded)) return null;
 
@@ -50,7 +51,7 @@ function DiffChunk({
       change.status === "accepted"
         ? "bg-red-50 line-through opacity-70"
         : change.status === "rejected"
-        ? "bg-transparent opacity-40"
+        ? "bg-red-100"  // Показываем удалённые, которые остаются
         : "bg-red-100";
   } else if (isAdded && side === "right") {
     cls =
@@ -209,40 +210,40 @@ export default function DocumentComparison({
     !version1.content?.trim() || !version2.content?.trim();
 
   return (
-    <div className="grid grid-cols-[1fr_320px] gap-6 h-full">
-      <main className="p-4 overflow-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">
+    <div className="h-full flex">
+      <main className="flex-1 p-6 overflow-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">
             Сравнение версий{" "}
             {version1.isLatest ? "Latest" : `V${version1.version_number ?? "-"}`}{" "}
             ↔{" "}
             {version2.isLatest ? "Latest" : `V${version2.version_number ?? "-"}`}
-          </h2>
+          </h1>
           {onBack && (
-            <button
-              className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
+            <Button
+              variant="outline"
               onClick={onBack}
             >
               ← Выйти из сравнения
-            </button>
+            </Button>
           )}
         </div>
 
         {oneSideEmpty && (
-          <div className="mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-4 py-3">
             Одна из версий не содержит сохранённого текста. Дифф может выглядеть
             как «сплошное добавление/удаление». Проверьте сохранение контента версии.
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           {/* СТАРАЯ */}
-          <section className="border rounded p-3 bg-white min-h-[60vh]">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">
+          <section className="border rounded-lg p-4 bg-white min-h-[70vh]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
                 Старая версия{" "}
                 {version1.isLatest ? "(Latest)" : `V${version1.version_number ?? "-"}`}
-              </h3>
+              </h2>
               <div className="text-xs text-muted-foreground">
                 {version1.created_at
                   ? new Date(version1.created_at).toLocaleString()
@@ -264,12 +265,12 @@ export default function DocumentComparison({
           </section>
 
           {/* НОВАЯ */}
-          <section className="border rounded p-3 bg-white min-h-[60vh]">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">
+          <section className="border rounded-lg p-4 bg-white min-h-[70vh]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
                 Новая версия{" "}
                 {version2.isLatest ? "(Latest)" : `V${version2.version_number ?? "-"}`}
-              </h3>
+              </h2>
               <div className="text-xs text-muted-foreground">
                 {version2.created_at
                   ? new Date(version2.created_at).toLocaleString()
@@ -292,8 +293,8 @@ export default function DocumentComparison({
         </div>
       </main>
 
-      {/* Правый сайдбар — одна панель */}
-      <aside className="border-l bg-gray-50 p-4">
+      {/* Правый сайдбар */}
+      <aside className="w-80 border-l bg-gray-50 p-4">
         <ChangesPanel
           changes={changes}
           stats={stats}

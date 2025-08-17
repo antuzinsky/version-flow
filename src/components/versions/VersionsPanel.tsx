@@ -113,12 +113,12 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
     };
   };
 
-  // Single version viewing - center layout
+  // Single version viewing - full width layout
   if (viewingVersion) {
     return (
-      <div className="w-full h-full">
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="flex items-center justify-between mb-6">
+      <div className="fixed inset-0 bg-background z-50">
+        <div className="h-full flex flex-col">
+          <div className="flex items-center justify-between p-6 border-b">
             <h1 className="text-2xl font-bold text-foreground">
               Version v{viewingVersion.version_number}
             </h1>
@@ -129,12 +129,16 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
               ← Back to Versions
             </Button>
           </div>
-          <div className="mb-4 text-sm text-muted-foreground space-y-1">
-            <div>Created: {new Date(viewingVersion.created_at).toLocaleDateString()}</div>
-            <div>By: {viewingVersion.created_by || 'Unknown'}</div>
+          <div className="p-6 pb-4 border-b">
+            <div className="text-sm text-muted-foreground space-y-1">
+              <div>Created: {new Date(viewingVersion.created_at).toLocaleDateString()}</div>
+              <div>By: {viewingVersion.created_by || 'Unknown'}</div>
+            </div>
           </div>
-          <div className="bg-background border rounded-lg p-6">
-            <VersionContentLoader version={viewingVersion} />
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-4xl mx-auto">
+              <VersionContentLoader version={viewingVersion} />
+            </div>
           </div>
         </div>
       </div>
@@ -143,7 +147,7 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
 
   if (compareMode && comparisonVersions) {
     return (
-      <div className="w-full h-full">
+      <div className="fixed inset-0 bg-background z-50">
         <DocumentComparison
           version1={comparisonVersions.version1}
           version2={comparisonVersions.version2}
