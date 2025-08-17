@@ -1,6 +1,6 @@
 // src/hooks/useDocumentDiff.ts
 import { useEffect, useMemo, useState } from "react";
-import { diffWords } from "diff";
+import { diffWordsWithSpace } from "diff";
 import { Change } from "@/types/change";
 
 /**
@@ -11,17 +11,19 @@ import { Change } from "@/types/change";
 export function useDocumentDiff(oldText: string, newText: string) {
   /** Пересчитываем diff при изменении текста */
   const computedChanges: Change[] = useMemo(() => {
-    const result = diffWords(oldText || "", newText || "");
+    const result = diffWordsWithSpace(oldText || "", newText || "");
 
     // На случай, если библиотека по каким-то причинам вернёт не массив
     const arr = Array.isArray(result) ? result : [];
 
-    const mapped: Change[] = arr.map((part, idx) => ({
-      id: idx,
-      type: part.added ? "added" : part.removed ? "removed" : null,
-      content: part.value ?? "",
-      status: "pending" as const,
-    }));
+    const mapped: Change[] = arr
+      .filter((part) => part.value.trim() !== "") // Убираем пустые изменения
+      .map((part, idx) => ({
+        id: idx,
+        type: part.added ? "added" : part.removed ? "removed" : null,
+        content: part.value ?? "",
+        status: "pending" as const,
+      }));
 
     return mapped;
   }, [oldText, newText]);
