@@ -1,261 +1,52 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { diffLines } from "diff";
-import { Bot, Send, FileText, Plus, Minus } from "lucide-react";
-
-interface Change {
-  id: number;
-  type: 'added' | 'removed';
-  content: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'edited';
-  choice?: 'left' | 'right' | 'custom';
-  resolved?: string;
-}
+// src/components/comparison/ChangesPanel.tsx
+import React from "react";
+import { Change } from "@/types/change";
 
 interface ChangesPanelProps {
-  version1Content: string;
-  version2Content: string;
   changes: Change[];
-  onClose: () => void;
-  onAcceptAll: () => void;
-  onRejectAll: () => void;
-  onReset: () => void;
-  onCreateVersion: () => void;
-  onNavigateToChange: (changeId: number) => void;
+  applyChange: (id: number, status: "accepted" | "rejected" | "pending") => void;
+  applyAll: () => void;
+  rejectAll: () => void;
+  resetAll: () => void;
+  stats: { accepted: number; rejected: number; pending: number };
+  onBack: () => void;
 }
 
-const ChangesPanel: React.FC<ChangesPanelProps> = ({ 
-  version1Content, 
-  version2Content, 
-  changes, 
-  onClose,
-  onAcceptAll,
-  onRejectAll,
-  onReset,
-  onCreateVersion,
-  onNavigateToChange
-}) => {
-  const [aiQuestion, setAiQuestion] = useState("");
-  const [chatHistory, setChatHistory] = useState<Array<{ type: 'user' | 'ai', message: string }>>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  const acceptedCount = changes.filter(c => c.status === 'accepted' && c.choice === 'right').length;
-  const rejectedCount = changes.filter(c => c.status === 'rejected' && c.choice === 'left').length;
-  const editedCount = changes.filter(c => c.status === 'edited' && c.choice === 'custom').length;
-  const pendingCount = changes.filter(c => c.status === 'pending').length;
-  
-  const allProcessed = pendingCount === 0;
-
-  const handleSendQuestion = () => {
-    if (!aiQuestion.trim()) return;
-    
-    setChatHistory(prev => [
-      ...prev,
-      { type: 'user', message: aiQuestion },
-      { type: 'ai', message: 'Это демо-ответ от AI ассистента. В реальном приложении здесь будет анализ изменений.' }
-    ]);
-    setAiQuestion("");
-  };
-
-  const handleAnalyzeChanges = () => {
-    setIsAnalyzing(true);
-    // Simulate analysis
-    setTimeout(() => {
-      setChatHistory(prev => [
-        ...prev,
-        { 
-          type: 'ai', 
-          message: 'Анализ изменений:\n\n• Изменены ключевые пункты договора\n• Обновлены финансовые условия\n• Добавлены новые обязательства\n\nЗадайте мне вопросы для детального разбора.' 
-        }
-      ]);
-      setIsAnalyzing(false);
-    }, 1500);
-  };
-
+export default function ChangesPanel({
+  changes,
+  applyAll,
+  rejectAll,
+  resetAll,
+  stats,
+  onBack,
+}: ChangesPanelProps) {
   return (
-    <Card className="w-80 h-full flex flex-col">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Изменения
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            ×
-          </Button>
-        </div>
-      </CardHeader>
+    <div className="w-72 border-r border-gray-200 p-4 bg-white">
+      <h3 className="font-bold text-lg mb-4">Изменения</h3>
 
-      <CardContent className="flex-1 flex flex-col gap-4 p-4">
-        {/* AI Assistant - moved to top */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-medium text-sm flex items-center gap-2">
-              <Bot className="h-4 w-4" />
-              AI Ассистент
-            </h3>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleAnalyzeChanges}
-              disabled={isAnalyzing}
-              className="text-xs"
-            >
-              {isAnalyzing ? 'Анализирую...' : 'Анализировать изменения'}
-            </Button>
-          </div>
-          
-          <ScrollArea className="h-32 mb-3">
-            <div className="space-y-2">
-              {chatHistory.length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-4">
-                  Нажмите "Анализировать изменения" или задайте вопрос
-                </div>
-              ) : (
-                chatHistory.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`p-2 rounded text-xs whitespace-pre-line ${
-                      message.type === 'ai'
-                        ? 'bg-muted text-muted-foreground'
-                        : 'bg-primary text-primary-foreground ml-4'
-                    }`}
-                  >
-                    {message.message}
-                  </div>
-                ))
-              )}
-            </div>
-          </ScrollArea>
+      <div className="mb-4 text-sm">
+        <div>Принято: {stats.accepted}</div>
+        <div>Отклонено: {stats.rejected}</div>
+        <div>Ожидают: {stats.pending}</div>
+      </div>
 
-          <div className="flex gap-2">
-            <Textarea
-              placeholder="Задайте вопрос об изменениях..."
-              value={aiQuestion}
-              onChange={(e) => setAiQuestion(e.target.value)}
-              className="text-xs resize-none min-h-[60px]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendQuestion();
-                }
-              }}
-            />
-            <Button 
-              size="sm" 
-              onClick={handleSendQuestion}
-              disabled={!aiQuestion.trim()}
-              className="px-2"
-            >
-              <Send className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
+      <div className="flex flex-col gap-2 mb-4">
+        <button className="btn btn-sm btn-success" onClick={applyAll}>
+          Принять всё
+        </button>
+        <button className="btn btn-sm btn-error" onClick={rejectAll}>
+          Отклонить всё
+        </button>
+        <button className="btn btn-sm btn-secondary" onClick={resetAll}>
+          Сбросить всё
+        </button>
+      </div>
 
-        <Separator />
-
-        {/* Summary */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm">Статистика:</h3>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Принято: {acceptedCount}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span>Отклонено: {rejectedCount}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Изменено вручную: {editedCount}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <span>Ожидают: {pendingCount}</span>
-            </div>
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex gap-2 text-xs">
-            <Button variant="outline" size="sm" onClick={onAcceptAll} disabled={pendingCount === 0}>
-              Принять всё
-            </Button>
-            <Button variant="outline" size="sm" onClick={onRejectAll} disabled={pendingCount === 0}>
-              Отклонить всё
-            </Button>
-          </div>
-          <Button variant="outline" size="sm" onClick={onReset} className="w-full text-xs">
-            Сбросить
-          </Button>
-        </div>
-
-        <Separator />
-
-        {/* Changes Navigation */}
-        <div className="flex-1 space-y-3">
-          <h3 className="font-medium text-sm">Навигация по изменениям:</h3>
-          <ScrollArea className="h-48">
-            <div className="space-y-2">
-              {changes.map((change, index) => (
-                <div
-                  key={change.id}
-                  className={`p-2 rounded border text-xs cursor-pointer transition-colors ${
-                    change.status === 'accepted' && change.choice === 'right'
-                      ? 'bg-green-50 border-green-200 text-green-800'
-                      : change.status === 'rejected' && change.choice === 'left'
-                      ? 'bg-red-50 border-red-200 text-red-800'
-                      : change.status === 'edited' && change.choice === 'custom'
-                      ? 'bg-blue-50 border-blue-200 text-blue-800'
-                      : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
-                  }`}
-                  onClick={() => onNavigateToChange(change.id)}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium">
-                      #{index + 1} {
-                        change.status === 'pending' ? 'Ожидает' :
-                        change.status === 'accepted' && change.choice === 'right' ? 'Принято' :
-                        change.status === 'rejected' && change.choice === 'left' ? 'Отклонено' :
-                        change.status === 'edited' && change.choice === 'custom' ? 'Изменено вручную' :
-                        'Ожидает'
-                      }
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {change.type === 'added' ? '+' : '-'}
-                    </Badge>
-                  </div>
-                  <div className="text-xs opacity-80 line-clamp-2">
-                    {change.choice === 'custom' && change.resolved 
-                      ? change.resolved.substring(0, 80)
-                      : change.content.substring(0, 80)}
-                    {(change.choice === 'custom' && change.resolved ? change.resolved.length > 80 : change.content.length > 80) ? '...' : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-
-        {/* Create Version Button */}
-        <div className="pt-3 border-t border-border">
-          <Button 
-            onClick={onCreateVersion}
-            disabled={!allProcessed}
-            className="w-full"
-            variant={allProcessed ? "default" : "outline"}
-          >
-            {allProcessed ? 'Создать версию' : `Осталось: ${pendingCount}`}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="border-t pt-4">
+        <button className="btn btn-sm btn-outline w-full" onClick={onBack}>
+          ← Назад
+        </button>
+      </div>
+    </div>
   );
-};
-
-export default ChangesPanel;
+}
