@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDocumentDiff } from "@/hooks/useDocumentDiff";
 import ChangesPanel from "./ChangesPanel";
+import PreviewPanel from "./PreviewPanel";
 import type { Change } from "@/types/change";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type DocVersion = {
   id: string;
@@ -16,6 +19,8 @@ interface Props {
   version1: DocVersion; // старая
   version2: DocVersion; // новая
   onBack?: () => void;
+  documentId?: string;
+  onVersionCreated?: () => void;
 }
 
 function DiffChunk({
@@ -91,9 +96,82 @@ function DiffChunk({
   );
 }
 
-export default function DocumentComparison({ version1, version2, onBack }: Props) {
+export default function DocumentComparison({ 
+  version1, 
+  version2, 
+  onBack, 
+  documentId,
+  onVersionCreated 
+}: Props) {
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+  const { toast } = useToast();
+  
   const { changes, applyChange, applyAll, rejectAll, resetAll, stats } =
     useDocumentDiff(version1.content, version2.content);
+
+  // Создание финального контента на основе принятых изменений
+  const generateFinalContent = () => {
+    let result = "";
+    changes.forEach(change => {
+      if (change.type === null) {
+        // Неизменённый текст
+        result += change.content;
+      } else if (change.type === "added" && change.status === "accepted") {
+        // Принятые добавления
+        result += change.content;
+      } else if (change.type === "removed" && change.status === "rejected") {
+        // Отклонённые удаления (сохраняем текст)
+        result += change.content;
+      }
+      // Принятые удаления и отклонённые добавления игнорируем
+    });
+    return result;
+  };
+
+  const handleCreateNewVersion = async () => {
+    if (!documentId) {
+      toast({
+        title: "Ошибка",
+        description: "Не указан ID документа",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingVersion(true);
+    try {
+      const finalContent = generateFinalContent();
+      
+      // Создаём новую версию в базе данных
+      const { error } = await supabase
+        .from('document_versions')
+        .insert({
+          document_id: documentId,
+          content: finalContent,
+          created_by: (await supabase.auth.getUser()).data.user?.id,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Успешно",
+        description: "Новая версия документа создана",
+      });
+
+      onVersionCreated?.();
+      onBack?.();
+    } catch (error) {
+      console.error('Error creating version:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось создать новую версию",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingVersion(false);
+    }
+  };
 
   const handleNavigateToChange = (changeId: number) => {
     const element = document.getElementById(`change-${changeId}`);
@@ -105,6 +183,20 @@ export default function DocumentComparison({ version1, version2, onBack }: Props
       }, 2000);
     }
   };
+
+  if (isPreviewMode) {
+    return (
+      <div className="h-full">
+        <PreviewPanel
+          changes={changes}
+          finalContent={generateFinalContent()}
+          onAcceptVersion={handleCreateNewVersion}
+          onCancelPreview={() => setIsPreviewMode(false)}
+          isCreating={isCreatingVersion}
+        />
+      </div>
+    );
+  }
 
   // если вдруг одна сторона реально пустая — покажем заметку, чтобы не было «весь документ красный»
   const oneSideEmpty =
@@ -203,6 +295,7 @@ export default function DocumentComparison({ version1, version2, onBack }: Props
           onRejectAll={rejectAll}
           onResetAll={resetAll}
           onNavigateToChange={handleNavigateToChange}
+          onShowPreview={() => setIsPreviewMode(true)}
         />
       </aside>
     </div>

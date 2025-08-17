@@ -14,6 +14,7 @@ interface ChangesPanelProps {
   onRejectAll: () => void;
   onResetAll: () => void;
   onNavigateToChange?: (changeId: number) => void;
+  onShowPreview?: () => void;
 }
 
 export default function ChangesPanel({
@@ -23,11 +24,13 @@ export default function ChangesPanel({
   onRejectAll,
   onResetAll,
   onNavigateToChange,
+  onShowPreview,
 }: ChangesPanelProps) {
   console.log("ChangesPanel stats:", stats);
   console.log("ChangesPanel changes:", changes);
 
   const actualChanges = changes.filter(ch => ch.type !== null);
+  const hasProcessedChanges = actualChanges.some(ch => ch.status === "accepted" || ch.status === "rejected");
 
   return (
     <div className="flex flex-col h-full">
@@ -61,6 +64,15 @@ export default function ChangesPanel({
         >
           Сбросить
         </button>
+        
+        {hasProcessedChanges && onShowPreview && (
+          <button
+            className="w-full px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium mt-2"
+            onClick={onShowPreview}
+          >
+            Завершить разбор правок
+          </button>
+        )}
       </div>
 
       {/* Список изменений */}

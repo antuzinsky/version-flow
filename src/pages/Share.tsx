@@ -454,6 +454,13 @@ const Share: React.FC = () => {
                   version1={comparisonVersions.version1}
                   version2={comparisonVersions.version2}
                   onBack={exitComparison}
+                  documentId={documentData.id}
+                  onVersionCreated={() => {
+                    // Перезагружаем данные после создания новой версии
+                    setSelectedVersions(new Set());
+                    setComparisonVersions(null);
+                    // Можно добавить рефеч данных документа
+                  }}
                 />
               </div>
             </>
