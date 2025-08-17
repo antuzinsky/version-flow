@@ -5,6 +5,8 @@ import { Separator } from "@/components/ui/separator";
 import { RotateCcw, Clock, GitCompare } from "lucide-react";
 import DocumentComparison from "@/components/comparison/DocumentComparison";
 import { normalizeContent } from "@/utils/normalizeContent";
+import { supabase } from "@/integrations/supabase/client";
+import { VersionContentLoader } from "./VersionContentLoader";
 
 interface VersionsPanelProps {
   versions: any[];
@@ -22,20 +24,27 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
   const [compareMode, setCompareMode] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [viewingVersion, setViewingVersion] = useState<any>(null);
+  const [comparisonVersions, setComparisonVersions] = useState<{version1: any, version2: any} | null>(null);
+  const [loadingComparison, setLoadingComparison] = useState(false);
 
   const handleVersionSelect = (versionId: string) => {
-    if (!isSelectionMode) return;
-    
-    setSelectedVersions(prev => {
-      if (prev.includes(versionId)) {
-        return prev.filter(id => id !== versionId);
-      } else if (prev.length < 2) {
-        return [...prev, versionId];
-      } else {
-        // Replace the first selected version with the new one
-        return [prev[1], versionId];
-      }
-    });
+    if (isSelectionMode) {
+      setSelectedVersions(prev => {
+        if (prev.includes(versionId)) {
+          return prev.filter(id => id !== versionId);
+        } else if (prev.length < 2) {
+          return [...prev, versionId];
+        } else {
+          // Replace the first selected version with the new one
+          return [prev[1], versionId];
+        }
+      });
+    } else {
+      // Single version viewing mode
+      const version = versions.find(v => v.id === versionId);
+      setViewingVersion(version);
+    }
   };
 
   const toggleSelectionMode = () => {
@@ -45,9 +54,16 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
     }
   };
 
-  const startComparison = () => {
+  const startComparison = async () => {
     if (selectedVersions.length === 2) {
-      setCompareMode(true);
+      setLoadingComparison(true);
+      const version1 = await getVersionData(selectedVersions[0]);
+      const version2 = await getVersionData(selectedVersions[1]);
+      if (version1 && version2) {
+        setComparisonVersions({ version1, version2 });
+        setCompareMode(true);
+      }
+      setLoadingComparison(false);
     }
   };
 
@@ -55,41 +71,103 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
     setCompareMode(false);
     setSelectedVersions([]);
     setIsSelectionMode(false);
+    setViewingVersion(null);
+    setComparisonVersions(null);
   };
 
-  const getVersionData = (versionId: string) => {
+  const getVersionData = async (versionId: string) => {
     const version = versions.find(v => v.id === versionId);
     if (!version) return null;
+    
+    let content = version.content || "";
+    
+    // If no content but has file_path, try to load from storage
+    if (!content && version.file_path) {
+      try {
+        const { data, error } = await supabase.storage
+          .from("documents")
+          .download(version.file_path);
+        
+        if (!error && data) {
+          if (version.file_path.endsWith('.docx')) {
+            const mammoth = await import('mammoth');
+            const arrayBuffer = await data.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            content = result.value;
+          } else {
+            content = await data.text();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load version content:', err);
+        content = "Ошибка загрузки содержимого версии";
+      }
+    }
     
     return {
       id: version.id,
       version_number: version.version_number,
       created_by: version.created_by,
       created_at: version.created_at,
-      content: normalizeContent(version.content || "")
+      content: normalizeContent(content)
     };
   };
 
-  if (compareMode && selectedVersions.length === 2) {
-    const version1 = getVersionData(selectedVersions[0]);
-    const version2 = getVersionData(selectedVersions[1]);
-    
-    if (version1 && version2) {
-      return (
-        <div className="w-full h-full">
-          <DocumentComparison
-            version1={version1}
-            version2={version2}
-            onBack={exitComparison}
-            documentId={selectedDocumentId}
-            onVersionCreated={() => {
-              onRefresh();
-              exitComparison();
-            }}
-          />
+  // Single version viewing
+  if (viewingVersion) {
+    return (
+      <div className="w-80 border-l border-border bg-sidebar flex flex-col h-full">
+        <div className="p-4 border-b border-sidebar-border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-sidebar-foreground">
+              Version v{viewingVersion.version_number}
+            </h2>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setViewingVersion(null)}
+            >
+              ← Back
+            </Button>
+          </div>
+          <div className="text-xs text-sidebar-foreground/70 space-y-1">
+            <div>Created: {new Date(viewingVersion.created_at).toLocaleDateString()}</div>
+            <div>By: {viewingVersion.created_by || 'Unknown'}</div>
+          </div>
         </div>
-      );
-    }
+        <div className="flex-1 overflow-auto p-4">
+          <VersionContentLoader version={viewingVersion} />
+        </div>
+      </div>
+    );
+  }
+
+  if (compareMode && comparisonVersions) {
+    return (
+      <div className="w-full h-full">
+        <DocumentComparison
+          version1={comparisonVersions.version1}
+          version2={comparisonVersions.version2}
+          onBack={exitComparison}
+          documentId={selectedDocumentId}
+          onVersionCreated={() => {
+            onRefresh();
+            exitComparison();
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (loadingComparison) {
+    return (
+      <div className="w-80 border-l border-border bg-sidebar flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-sm text-muted-foreground">Loading versions...</p>
+        </div>
+      </div>
+    );
   }
   return (
     <div className="w-80 border-l border-border bg-sidebar flex flex-col h-full">
@@ -144,6 +222,14 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
             </Button>
           </div>
         )}
+        
+        {!isSelectionMode && (
+          <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded text-sm">
+            <p className="text-xs text-sidebar-foreground/70">
+              Click on a version to view its content
+            </p>
+          </div>
+        )}
       </div>
       
       <ScrollArea className="flex-1">
@@ -159,14 +245,12 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
               {versions.map((version, index) => (
                 <div key={version.id} className="group">
                   <div 
-                    className={`flex items-start justify-between p-3 rounded-lg border border-sidebar-border transition-colors ${
-                      isSelectionMode ? 'cursor-pointer' : 'cursor-default'
-                    } ${
+                    className={`flex items-start justify-between p-3 rounded-lg border border-sidebar-border transition-colors cursor-pointer ${
                       selectedVersions.includes(version.id) 
                         ? 'bg-blue-100 border-blue-300' 
                         : isSelectionMode 
                           ? 'bg-sidebar-accent/50 hover:bg-sidebar-accent' 
-                          : 'bg-sidebar-accent/30'
+                          : 'bg-sidebar-accent/30 hover:bg-sidebar-accent/50'
                     }`}
                     onClick={() => handleVersionSelect(version.id)}
                   >
@@ -190,7 +274,9 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
                       <div className="text-xs text-sidebar-foreground/70 space-y-0.5">
                         <div>{new Date(version.created_at).toLocaleDateString()}</div>
                         <div>by {version.created_by || 'Unknown'}</div>
-                        <div className="text-sidebar-foreground/50">auto-saved</div>
+                        <div className="text-sidebar-foreground/50">
+                          {version.content ? 'text content' : 'file content'}
+                        </div>
                       </div>
                     </div>
                     
