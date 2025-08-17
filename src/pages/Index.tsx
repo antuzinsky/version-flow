@@ -438,6 +438,8 @@ const Index: React.FC = () => {
         onRestore={restoreVersion}
         onRefresh={() => refreshVersions(selectedDocumentId)}
         selectedDocumentId={selectedDocumentId}
+        latestContent={documentContent}
+        onVersionCreated={() => refreshVersions(selectedDocumentId)}
       />
 
       <UploadModal
