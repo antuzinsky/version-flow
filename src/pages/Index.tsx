@@ -161,14 +161,65 @@ const Index: React.FC = () => {
     }
   };
 
+  const ensureDefaultProject = async (): Promise<string | null> => {
+    if (!userId) return null;
+
+    // Ensure default client exists
+    let { data: client } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("owner_id", userId)
+      .eq("name", "Default")
+      .maybeSingle();
+
+    if (!client) {
+      const { data: newClient, error: cErr } = await supabase
+        .from("clients")
+        .insert({ owner_id: userId, name: "Default" })
+        .select("*")
+        .maybeSingle();
+      if (cErr || !newClient) {
+        toast({ title: "Create client failed", description: cErr?.message || "No row returned", variant: "destructive" });
+        return null;
+      }
+      client = newClient;
+    }
+
+    // Ensure default project under that client
+    let { data: project } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("client_id", client.id)
+      .eq("name", "Default")
+      .maybeSingle();
+
+    if (!project) {
+      const { data: newProject, error: pErr } = await supabase
+        .from("projects")
+        .insert({ client_id: client.id, name: "Default" })
+        .select("*")
+        .maybeSingle();
+      if (pErr || !newProject) {
+        toast({ title: "Create project failed", description: pErr?.message || "No row returned", variant: "destructive" });
+        return null;
+      }
+      project = newProject;
+    }
+
+    return project?.id ?? null;
+  };
+
   const uploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || !docTitle.trim() || !docFile) return;
 
-    // 1) Insert document row (without project requirement)
+    // 1) Ensure default project and insert document row
+    const defaultProjectId = await ensureDefaultProject();
+    if (!defaultProjectId) return;
+
     const { data: docInsert, error: docErr } = await supabase
       .from("documents")
-      .insert({ title: docTitle.trim(), project_id: null as unknown as string } as any)
+      .insert({ title: docTitle.trim(), project_id: defaultProjectId })
       .select("*")
       .maybeSingle();
 
