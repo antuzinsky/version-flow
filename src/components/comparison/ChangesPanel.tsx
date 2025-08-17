@@ -13,6 +13,7 @@ interface ChangesPanelProps {
   onApplyAll: () => void;
   onRejectAll: () => void;
   onResetAll: () => void;
+  onNavigateToChange?: (changeId: number) => void;
 }
 
 export default function ChangesPanel({
@@ -21,12 +22,15 @@ export default function ChangesPanel({
   onApplyAll,
   onRejectAll,
   onResetAll,
+  onNavigateToChange,
 }: ChangesPanelProps) {
   console.log("ChangesPanel stats:", stats);
   console.log("ChangesPanel changes:", changes);
 
+  const actualChanges = changes.filter(ch => ch.type !== null);
+
   return (
-    <aside className="w-72 bg-gray-50 border-r p-4 overflow-auto">
+    <div className="flex flex-col h-full">
       <h2 className="text-lg font-bold mb-4">Изменения</h2>
 
       {/* Счётчики */}
@@ -38,7 +42,7 @@ export default function ChangesPanel({
       </div>
 
       {/* Кнопки массовых действий */}
-      <div className="space-y-2">
+      <div className="space-y-2 mb-4">
         <button
           className="w-full px-3 py-1 bg-green-500 text-white rounded text-sm"
           onClick={onApplyAll}
@@ -58,6 +62,42 @@ export default function ChangesPanel({
           Сбросить
         </button>
       </div>
-    </aside>
+
+      {/* Список изменений */}
+      <div className="flex-1 overflow-auto">
+        <h3 className="font-medium text-sm mb-2">Список расхождений ({actualChanges.length})</h3>
+        <div className="space-y-1">
+          {actualChanges.map((change) => {
+            const preview = change.content.trim().substring(0, 40);
+            const typeLabel = change.type === "added" ? "Добавлено" : "Удалено";
+            const typeIcon = change.type === "added" ? "+" : "-";
+            const statusIcon = 
+              change.status === "accepted" ? "✅" : 
+              change.status === "rejected" ? "❌" : 
+              "⏳";
+
+            return (
+              <button
+                key={change.id}
+                onClick={() => onNavigateToChange?.(change.id)}
+                className="w-full text-left p-2 text-xs border rounded hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`font-medium ${
+                    change.type === "added" ? "text-green-600" : "text-red-600"
+                  }`}>
+                    {typeIcon} {typeLabel}
+                  </span>
+                  <span>{statusIcon}</span>
+                </div>
+                <div className="text-gray-600 truncate">
+                  {preview}{preview.length >= 40 ? "..." : ""}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

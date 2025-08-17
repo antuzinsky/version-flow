@@ -60,7 +60,10 @@ function DiffChunk({
     (side === "left" && isRemoved) || (side === "right" && isAdded);
 
   return (
-    <span className={`${base} ${cls}`}>
+    <span 
+      id={change.type !== null ? `change-${change.id}` : undefined}
+      className={`${base} ${cls} transition-colors duration-500`}
+    >
       {change.content}
       {showControls && (
         <span className="ml-1 select-none">
@@ -91,6 +94,17 @@ function DiffChunk({
 export default function DocumentComparison({ version1, version2, onBack }: Props) {
   const { changes, applyChange, applyAll, rejectAll, resetAll, stats } =
     useDocumentDiff(version1.content, version2.content);
+
+  const handleNavigateToChange = (changeId: number) => {
+    const element = document.getElementById(`change-${changeId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.style.backgroundColor = '#fef3c7';
+      setTimeout(() => {
+        element.style.backgroundColor = '';
+      }, 2000);
+    }
+  };
 
   // если вдруг одна сторона реально пустая — покажем заметку, чтобы не было «весь документ красный»
   const oneSideEmpty =
@@ -188,6 +202,7 @@ export default function DocumentComparison({ version1, version2, onBack }: Props
           onApplyAll={applyAll}
           onRejectAll={rejectAll}
           onResetAll={resetAll}
+          onNavigateToChange={handleNavigateToChange}
         />
       </aside>
     </div>
