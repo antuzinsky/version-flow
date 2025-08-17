@@ -143,16 +143,22 @@ export default function DocumentComparison({
     try {
       const finalContent = generateFinalContent();
       
-      // Вызываем edge функцию для создания версии
-      const { data, error } = await supabase.functions.invoke('create-version-from-share', {
-        body: {
+      // Получаем текущего пользователя
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("Пользователь не авторизован");
+      }
+      
+      // Создаём новую версию напрямую в базе данных
+      const { error } = await supabase
+        .from('document_versions')
+        .insert({
           document_id: documentId,
-          content: finalContent
-        }
-      });
+          content: finalContent,
+          created_by: user.id,
+        });
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Успешно",
