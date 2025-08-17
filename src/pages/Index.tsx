@@ -163,12 +163,12 @@ const Index: React.FC = () => {
 
   const uploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId || !selectedProjectId || !docTitle.trim() || !docFile) return;
+    if (!userId || !docTitle.trim() || !docFile) return;
 
-    // 1) Insert document row
+    // 1) Insert document row (without project requirement)
     const { data: docInsert, error: docErr } = await supabase
       .from("documents")
-      .insert({ project_id: selectedProjectId, title: docTitle.trim() })
+      .insert({ title: docTitle.trim() })
       .select("*")
       .maybeSingle();
 
