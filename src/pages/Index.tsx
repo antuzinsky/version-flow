@@ -449,39 +449,6 @@ const Index: React.FC = () => {
         onDocFileChange={setDocFile}
         onUploadDocument={uploadDocument}
       />
-      
-      {/* Quick test area - can be removed later */}
-      {selectedDocumentId && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Card className="p-4 w-80">
-            <h4 className="font-medium mb-2">Quick Version Test</h4>
-            <form onSubmit={saveVersion} className="space-y-2">
-              <textarea 
-                className="w-full h-20 p-2 border rounded text-sm resize-none"
-                placeholder="Type test content..." 
-                value={versionContent} 
-                onChange={(e) => setVersionContent(e.target.value)} 
-              />
-              <Button 
-                type="submit" 
-                size="sm" 
-                className="w-full"
-                disabled={!selectedDocumentId || !versionContent.trim()}
-              >
-                Save Test Version
-              </Button>
-            </form>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full mt-2"
-              onClick={async () => { await supabase.auth.signOut(); window.location.href = "/auth"; }}
-            >
-              Sign Out
-            </Button>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };

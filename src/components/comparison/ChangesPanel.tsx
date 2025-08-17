@@ -26,9 +26,6 @@ export default function ChangesPanel({
   onNavigateToChange,
   onShowPreview,
 }: ChangesPanelProps) {
-  console.log("ChangesPanel stats:", stats);
-  console.log("ChangesPanel changes:", changes);
-
   const actualChanges = changes.filter(ch => ch.type !== null);
   const hasProcessedChanges = actualChanges.some(ch => ch.status === "accepted" || ch.status === "rejected");
 

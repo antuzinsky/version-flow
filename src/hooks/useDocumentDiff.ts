@@ -64,6 +64,13 @@ export function useDocumentDiff(oldText: string, newText: string) {
     setChanges(computedChanges);
   };
 
+  /** Обновить содержимое конкретного изменения */
+  const updateChangeContent = (id: number, content: string) => {
+    setChanges((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, content, status: "edited" } : c))
+    );
+  };
+
   /** Статистика по изменениям */
   const stats = useMemo(() => {
     return {
@@ -80,6 +87,7 @@ export function useDocumentDiff(oldText: string, newText: string) {
     applyAll,
     rejectAll,
     resetAll,
+    updateChangeContent,
     stats,
   };
 }
