@@ -48,14 +48,6 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
           return [prev[1], versionId];
         }
       });
-    } else {
-      // Single version viewing mode - load content for editing
-      const version = versions.find(v => v.id === versionId);
-      if (version) {
-        setViewingVersion(version);
-        const content = await loadVersionContent(version);
-        setVersionContent(content);
-      }
     }
   };
 
@@ -192,59 +184,6 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
     };
   };
 
-  // Single version viewing - side by side with versions panel
-  if (viewingVersion) {
-    return (
-      <div className="flex h-full">
-        {/* Центральная область с редактором */}
-        <div className="flex-1 p-6 overflow-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">
-              Версия V{viewingVersion.version_number}
-            </h1>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setViewingVersion(null);
-                  setVersionContent("");
-                }}
-              >
-                ← Закрыть просмотр
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-white border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-muted-foreground">
-                Создано: {new Date(viewingVersion.created_at).toLocaleString()}
-              </div>
-            </div>
-
-            <Textarea
-              value={versionContent}
-              onChange={(e) => setVersionContent(e.target.value)}
-              className="min-h-[400px] resize-none"
-              placeholder="Содержимое версии..."
-            />
-
-            <div className="flex gap-2 mt-4">
-              <Button 
-                onClick={handleSaveNewVersion}
-                disabled={isCreatingVersion || !versionContent.trim()}
-              >
-                {isCreatingVersion ? "Сохранение..." : "Сохранить как новую версию"}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Правая панель с версиями */}
-        {renderVersionsList()}
-      </div>
-    );
-  }
 
   if (compareMode && comparisonVersions) {
     return (
