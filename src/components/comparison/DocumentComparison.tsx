@@ -21,24 +21,25 @@ export default function DocumentComparison({
     version2: version2?.content,
   });
 
-// хук для вычисления diff
-const {
-  changes,
-  applyChange,
-  applyAll,
-  rejectAll,
-  resetAll,
-  stats,
-} = useDocumentDiff(
-  normalizeContent(version1?.content || ""),
-  normalizeContent(version2?.content || "")
-);
+  // считаем diff
+  const {
+    changes,
+    applyChange,
+    applyAll,
+    rejectAll,
+    resetAll,
+    stats,
+  } = useDocumentDiff(
+    normalizeContent(version1?.content || ""),
+    normalizeContent(version2?.content || "")
+  );
 
-// вот тут уже отдельно можно логать
-console.log("version1.content type:", typeof version1?.content, version1?.content);
-console.log("version2.content type:", typeof version2?.content, version2?.content);
-console.log("Generated changes:", changes);
-console.log("Stats:", stats);
+  console.log("Normalized v1:", normalizeContent(version1?.content));
+  console.log("Normalized v2:", normalizeContent(version2?.content));
+  console.log("version1.content type:", typeof version1?.content, version1?.content);
+  console.log("version2.content type:", typeof version2?.content, version2?.content);
+  console.log("Generated changes:", changes);
+  console.log("Stats:", stats);
 
   return (
     <div className="flex h-full">
@@ -51,41 +52,73 @@ console.log("Stats:", stats);
         onResetAll={resetAll}
       />
 
-      {/* Правая часть: отображение документа с изменениями */}
+      {/* Правая часть */}
       <div className="flex-1 p-4 overflow-auto">
-        <h2 className="text-lg font-bold mb-4">Сравнение документа</h2>
-        {changes.length === 0 ? (
-          <p className="text-gray-500">Изменений не найдено</p>
-        ) : (
-          <ul className="space-y-2">
-            {changes.map((change: Change) => (
-              <li
-                key={change.id}
-                className={`p-2 rounded border ${
-                  change.type === "added"
-                    ? "bg-green-100 border-green-300"
-                    : "bg-red-100 border-red-300"
-                }`}
-              >
-                <span className="font-mono">{change.content}</span>
-                <div className="mt-1 space-x-2">
-                  <button
-                    className="px-2 py-1 text-sm bg-green-500 text-white rounded"
-                    onClick={() => applyChange(change.id, "accepted")}
-                  >
-                    Принять
-                  </button>
-                  <button
-                    className="px-2 py-1 text-sm bg-red-500 text-white rounded"
-                    onClick={() => applyChange(change.id, "rejected")}
-                  >
-                    Отклонить
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold">Сравнение документа</h2>
+          {onBack && (
+            <button
+              className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
+              onClick={onBack}
+            >
+              ← Назад
+            </button>
+          )}
+        </div>
+
+        {/* Отображение обоих документов */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="border rounded p-3 bg-white">
+            <h3 className="font-semibold mb-2">Версия 1</h3>
+            <pre className="whitespace-pre-wrap text-sm text-gray-700">
+              {version1?.content || "— пусто —"}
+            </pre>
+          </div>
+
+          <div className="border rounded p-3 bg-white">
+            <h3 className="font-semibold mb-2">Версия 2</h3>
+            <pre className="whitespace-pre-wrap text-sm text-gray-700">
+              {version2?.content || "— пусто —"}
+            </pre>
+          </div>
+        </div>
+
+        {/* Список diff-изменений */}
+        <div className="mt-6">
+          <h3 className="font-semibold mb-2">Изменения</h3>
+          {changes.length === 0 ? (
+            <p className="text-gray-500">Изменений не найдено</p>
+          ) : (
+            <ul className="space-y-2">
+              {changes.map((change: Change) => (
+                <li
+                  key={change.id}
+                  className={`p-2 rounded border ${
+                    change.type === "added"
+                      ? "bg-green-100 border-green-300"
+                      : "bg-red-100 border-red-300"
+                  }`}
+                >
+                  <span className="font-mono">{change.content}</span>
+                  <div className="mt-1 space-x-2">
+                    <button
+                      className="px-2 py-1 text-sm bg-green-500 text-white rounded"
+                      onClick={() => applyChange(change.id, "accepted")}
+                    >
+                      Принять
+                    </button>
+                    <button
+                      className="px-2 py-1 text-sm bg-red-500 text-white rounded"
+                      onClick={() => applyChange(change.id, "rejected")}
+                    >
+                      Отклонить
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
