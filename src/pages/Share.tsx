@@ -163,7 +163,7 @@ const Share: React.FC = () => {
     return {
       id: v.id,
       version_number: v.version_number,
-      content: normalizeContent(v.content ?? ""),
+      content: normalizeContent(v.content ?? shareData.documentData.content),
       created_at: v.created_at,
       created_by: v.created_by,
       isLatest: false,

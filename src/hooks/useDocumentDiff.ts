@@ -20,7 +20,7 @@ export function useDocumentDiff(oldText: string, newText: string) {
       id: idx,
       type: part.added ? "added" : part.removed ? "removed" : null,
       content: part.value ?? "",
-      status: "pending",
+      status: "pending" as const,
     }));
 
     return mapped;

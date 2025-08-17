@@ -1,7 +1,7 @@
 // src/types/change.ts
 export interface Change {
   id: number;
-  type: "added" | "removed";
+  type: "added" | "removed" | null;
   content: string;
-  status: "pending" | "accepted" | "rejected";
+  status: "pending" | "accepted" | "rejected" | "edited";
 }
