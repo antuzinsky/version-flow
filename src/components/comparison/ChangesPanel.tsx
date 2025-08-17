@@ -4,49 +4,60 @@ import { Change } from "@/types/change";
 
 interface ChangesPanelProps {
   changes: Change[];
-  applyChange: (id: number, status: "accepted" | "rejected" | "pending") => void;
-  applyAll: () => void;
-  rejectAll: () => void;
-  resetAll: () => void;
-  stats: { accepted: number; rejected: number; pending: number };
-  onBack: () => void;
+  stats: {
+    accepted: number;
+    rejected: number;
+    pending: number;
+    edited: number;
+  };
+  onApplyAll: () => void;
+  onRejectAll: () => void;
+  onResetAll: () => void;
 }
 
 export default function ChangesPanel({
   changes,
-  applyAll,
-  rejectAll,
-  resetAll,
   stats,
-  onBack,
+  onApplyAll,
+  onRejectAll,
+  onResetAll,
 }: ChangesPanelProps) {
-  return (
-    <div className="w-72 border-r border-gray-200 p-4 bg-white">
-      <h3 className="font-bold text-lg mb-4">Изменения</h3>
+  console.log("ChangesPanel stats:", stats);
+  console.log("ChangesPanel changes:", changes);
 
-      <div className="mb-4 text-sm">
-        <div>Принято: {stats.accepted}</div>
-        <div>Отклонено: {stats.rejected}</div>
-        <div>Ожидают: {stats.pending}</div>
+  return (
+    <aside className="w-72 bg-gray-50 border-r p-4 overflow-auto">
+      <h2 className="text-lg font-bold mb-4">Изменения</h2>
+
+      {/* Счётчики */}
+      <div className="space-y-1 text-sm mb-4">
+        <p>✅ Принято: {stats?.accepted ?? 0}</p>
+        <p>❌ Отклонено: {stats?.rejected ?? 0}</p>
+        <p>⏳ Ожидает: {stats?.pending ?? 0}</p>
+        <p>✏️ Изменено: {stats?.edited ?? 0}</p>
       </div>
 
-      <div className="flex flex-col gap-2 mb-4">
-        <button className="btn btn-sm btn-success" onClick={applyAll}>
+      {/* Кнопки массовых действий */}
+      <div className="space-y-2">
+        <button
+          className="w-full px-3 py-1 bg-green-500 text-white rounded text-sm"
+          onClick={onApplyAll}
+        >
           Принять всё
         </button>
-        <button className="btn btn-sm btn-error" onClick={rejectAll}>
+        <button
+          className="w-full px-3 py-1 bg-red-500 text-white rounded text-sm"
+          onClick={onRejectAll}
+        >
           Отклонить всё
         </button>
-        <button className="btn btn-sm btn-secondary" onClick={resetAll}>
-          Сбросить всё
+        <button
+          className="w-full px-3 py-1 bg-gray-400 text-white rounded text-sm"
+          onClick={onResetAll}
+        >
+          Сбросить
         </button>
       </div>
-
-      <div className="border-t pt-4">
-        <button className="btn btn-sm btn-outline w-full" onClick={onBack}>
-          ← Назад
-        </button>
-      </div>
-    </div>
+    </aside>
   );
 }
