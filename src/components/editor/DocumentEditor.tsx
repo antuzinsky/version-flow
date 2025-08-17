@@ -2,8 +2,9 @@ import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Bold, Italic, Underline, Type, Share, Save, ChevronDown, Strikethrough, Quote, Code } from "lucide-react";
+import { Bold, Italic, Underline, Type, Share, Save, ChevronDown, Strikethrough, Quote, Code, Download } from "lucide-react";
 import { formatBBCode, insertBBCode } from "@/utils/formatBBCode";
+import { useToast } from "@/hooks/use-toast";
 
 interface DocumentEditorProps {
   document?: any;
@@ -13,6 +14,7 @@ interface DocumentEditorProps {
   onEditModeToggle: () => void;
   onSave: () => void;
   onShare: (shareType: 'latest_only' | 'all_versions') => void;
+  selectedVersion?: any;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -23,7 +25,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onEditModeToggle,
   onSave,
   onShare,
+  selectedVersion,
 }) => {
+  const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const insertFormatting = (before: string, after: string = before) => {
@@ -81,6 +85,46 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       textarea.setSelectionRange(start + 2, start + 2);
     }, 0);
   };
+
+  const handleExportDocx = async () => {
+    try {
+      const { Document, Packer, Paragraph, TextRun } = await import('docx');
+      
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: content.split('\n').map(line => 
+            new Paragraph({
+              children: [new TextRun(line || ' ')],
+            })
+          ),
+        }],
+      });
+      
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fileName = selectedVersion 
+        ? `${document.title}-v${selectedVersion.version_number}.docx`
+        : `${document.title}.docx`;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Успешно",
+        description: "Документ экспортирован в DOCX",
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось экспортировать документ",
+        variant: "destructive",
+      });
+    }
+  };
   if (!document) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
@@ -103,6 +147,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleExportDocx}
+            disabled={!content || content.includes("Error") || content.includes("Failed")}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export DOCX
+          </Button>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">

@@ -36,6 +36,7 @@ const Index: React.FC = () => {
   const [currentDocument, setCurrentDocument] = useState<any>(null);
   const [documentContent, setDocumentContent] = useState("");
   const [editMode, setEditMode] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<any>(null);
   
   // UI states
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -385,6 +386,12 @@ const Index: React.FC = () => {
     }
   };
 
+  const handleVersionSelect = (content: string, version: any) => {
+    setDocumentContent(content);
+    setSelectedVersion(version);
+    setEditMode(false); // Exit edit mode when viewing a version
+  };
+
   const isAuthed = useMemo(() => !!userId, [userId]);
 
   if (loading) {
@@ -431,6 +438,7 @@ const Index: React.FC = () => {
         onEditModeToggle={() => setEditMode(!editMode)}
         onSave={saveDocumentEdit}
         onShare={createShareLink}
+        selectedVersion={selectedVersion}
       />
       
       <VersionsPanel
@@ -440,6 +448,7 @@ const Index: React.FC = () => {
         selectedDocumentId={selectedDocumentId}
         latestContent={documentContent}
         onVersionCreated={() => refreshVersions(selectedDocumentId)}
+        onVersionSelect={handleVersionSelect}
       />
 
       <UploadModal
