@@ -21,8 +21,11 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
 }) => {
   const [compareMode, setCompareMode] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const handleVersionSelect = (versionId: string) => {
+    if (!isSelectionMode) return;
+    
     setSelectedVersions(prev => {
       if (prev.includes(versionId)) {
         return prev.filter(id => id !== versionId);
@@ -35,6 +38,13 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
     });
   };
 
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    if (isSelectionMode) {
+      setSelectedVersions([]);
+    }
+  };
+
   const startComparison = () => {
     if (selectedVersions.length === 2) {
       setCompareMode(true);
@@ -44,6 +54,7 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
   const exitComparison = () => {
     setCompareMode(false);
     setSelectedVersions([]);
+    setIsSelectionMode(false);
   };
 
   const getVersionData = (versionId: string) => {
@@ -85,34 +96,49 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-sidebar-foreground">Versions</h2>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={onRefresh}
-            disabled={!selectedDocumentId}
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant={isSelectionMode ? "default" : "outline"} 
+              size="sm"
+              onClick={toggleSelectionMode}
+              disabled={!selectedDocumentId || versions.length < 2}
+            >
+              <GitCompare className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onRefresh}
+              disabled={!selectedDocumentId}
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
-        {selectedVersions.length > 0 && (
-          <div className="mb-3 p-2 bg-blue-50 rounded text-sm">
-            <p className="text-sidebar-foreground">Selected: {selectedVersions.length}/2 versions</p>
+        {isSelectionMode && (
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <p className="text-sidebar-foreground font-medium mb-2">
+              Selection Mode: {selectedVersions.length}/2 versions
+            </p>
+            <p className="text-xs text-sidebar-foreground/70 mb-3">
+              Click on versions to select them for comparison
+            </p>
             {selectedVersions.length === 2 && (
               <Button 
                 size="sm" 
                 onClick={startComparison}
-                className="mt-2 w-full"
+                className="mb-2 w-full"
               >
                 <GitCompare className="h-4 w-4 mr-2" />
-                Compare Versions
+                Compare Selected Versions
               </Button>
             )}
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => setSelectedVersions([])}
-              className="mt-1 w-full"
+              className="w-full"
             >
               Clear Selection
             </Button>
@@ -133,10 +159,14 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
               {versions.map((version, index) => (
                 <div key={version.id} className="group">
                   <div 
-                    className={`flex items-start justify-between p-3 rounded-lg border border-sidebar-border transition-colors cursor-pointer ${
+                    className={`flex items-start justify-between p-3 rounded-lg border border-sidebar-border transition-colors ${
+                      isSelectionMode ? 'cursor-pointer' : 'cursor-default'
+                    } ${
                       selectedVersions.includes(version.id) 
                         ? 'bg-blue-100 border-blue-300' 
-                        : 'bg-sidebar-accent/50 hover:bg-sidebar-accent'
+                        : isSelectionMode 
+                          ? 'bg-sidebar-accent/50 hover:bg-sidebar-accent' 
+                          : 'bg-sidebar-accent/30'
                     }`}
                     onClick={() => handleVersionSelect(version.id)}
                   >
@@ -150,7 +180,7 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
                             Latest
                           </span>
                         )}
-                        {selectedVersions.includes(version.id) && (
+                        {isSelectionMode && selectedVersions.includes(version.id) && (
                           <span className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded-full">
                             Selected
                           </span>
