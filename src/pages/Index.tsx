@@ -91,12 +91,11 @@ const Index: React.FC = () => {
     }
   };
 
-  const refreshDocuments = async (projectId?: string) => {
-    if (!projectId) return setDocuments([]);
+  const refreshDocuments = async () => {
+    if (!userId) return setDocuments([]);
     const { data, error } = await supabase
       .from("documents")
       .select("*")
-      .eq("project_id", projectId)
       .order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Failed to load documents", description: error.message, variant: "destructive" });
@@ -120,9 +119,7 @@ const Index: React.FC = () => {
   };
 
   // Load lists when state changes
-  useEffect(() => { if (userId) { refreshClients(); } }, [userId]);
-  useEffect(() => { refreshProjects(selectedClientId); }, [selectedClientId]);
-  useEffect(() => { refreshDocuments(selectedProjectId); }, [selectedProjectId]);
+  useEffect(() => { if (userId) { refreshClients(); refreshDocuments(); } }, [userId]);
   useEffect(() => { 
     refreshVersions(selectedDocumentId); 
     if (selectedDocumentId) {
@@ -218,7 +215,7 @@ const Index: React.FC = () => {
     setDocTitle("");
     setDocFile(null);
     toast({ title: "Document uploaded" });
-    refreshDocuments(selectedProjectId);
+    refreshDocuments();
   };
 
   const saveVersion = async (e: React.FormEvent) => {
@@ -367,14 +364,8 @@ const Index: React.FC = () => {
   return (
     <div className="h-screen flex bg-background">
       <WorkspacePanel
-        clients={clients}
-        projects={projects}
         documents={documents}
-        selectedClientId={selectedClientId}
-        selectedProjectId={selectedProjectId}
         selectedDocumentId={selectedDocumentId}
-        onClientSelect={setSelectedClientId}
-        onProjectSelect={setSelectedProjectId}
         onDocumentSelect={setSelectedDocumentId}
         onUploadClick={() => setUploadModalOpen(true)}
       />
