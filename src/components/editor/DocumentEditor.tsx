@@ -233,7 +233,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               This central area is the document editor. Click the title to edit. Below are placeholder lines to suggest text blocks.
             </div>
             <div 
-              className="whitespace-pre-wrap text-base leading-relaxed"
+              className="whitespace-pre-wrap text-base leading-relaxed prose max-w-none"
               dangerouslySetInnerHTML={{ __html: formatBBCode(content) || "Loading document content..." }}
             />
           </div>
