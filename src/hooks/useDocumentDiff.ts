@@ -2,16 +2,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { diffWordsWithSpace } from "diff";
 import { Change } from "@/types/change";
+import { bbcodeToPlainText } from "@/utils/formatBBCode";
 
 /**
  * Считает diff между двумя строками и даёт утилиты для управления изменениями.
- * Защищено от неожиданных форматов, синхронизирует локальное состояние
- * при пересчёте diff через useEffect.
+ * Использует plain text для сравнения, но сохраняет оригинальное форматирование.
  */
 export function useDocumentDiff(oldText: string, newText: string) {
-  /** Пересчитываем diff при изменении текста */
+  /** Пересчитываем diff при изменении текста, используя plain text для сравнения */
   const computedChanges: Change[] = useMemo(() => {
-    const result = diffWordsWithSpace(oldText || "", newText || "");
+    // Конвертируем в plain text для сравнения, но сохраняем оригинальные тексты
+    const oldPlainText = bbcodeToPlainText(oldText || "");
+    const newPlainText = bbcodeToPlainText(newText || "");
+    const result = diffWordsWithSpace(oldPlainText, newPlainText);
 
     // На случай, если библиотека по каким-то причинам вернёт не массив
     const arr = Array.isArray(result) ? result : [];

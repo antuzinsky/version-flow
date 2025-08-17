@@ -1,5 +1,5 @@
-// Utility function to format BB code tags
-export const formatBBCode = (text: string): string => {
+// Utility function to convert BB code tags to HTML
+export const bbcodeToHtml = (text: string): string => {
   if (!text) return text;
   
   return text
@@ -21,6 +21,34 @@ export const formatBBCode = (text: string): string => {
     .replace(/\[\*\](.*?)(?=\[\*\]|\[\/list\])/g, '<li>$1</li>')
     .replace(/\n/g, '<br>');
 };
+
+// Convert BB code to plain text for diff comparison
+export const bbcodeToPlainText = (text: string): string => {
+  if (!text) return text;
+  
+  return text
+    .replace(/\[b\](.*?)\[\/b\]/g, '$1')
+    .replace(/\[i\](.*?)\[\/i\]/g, '$1')
+    .replace(/\[u\](.*?)\[\/u\]/g, '$1')
+    .replace(/\[s\](.*?)\[\/s\]/g, '$1')
+    .replace(/\[url=(.*?)\](.*?)\[\/url\]/g, '$2')
+    .replace(/\[url\](.*?)\[\/url\]/g, '$1')
+    .replace(/\[color=(.*?)\](.*?)\[\/color\]/g, '$2')
+    .replace(/\[size=(.*?)\](.*?)\[\/size\]/g, '$2')
+    .replace(/\[center\](.*?)\[\/center\]/g, '$1')
+    .replace(/\[right\](.*?)\[\/right\]/g, '$1')
+    .replace(/\[left\](.*?)\[\/left\]/g, '$1')
+    .replace(/\[quote\](.*?)\[\/quote\]/g, '$1')
+    .replace(/\[code\](.*?)\[\/code\]/g, '$1')
+    .replace(/\[list\](.*?)\[\/list\]/gs, '$1')
+    .replace(/\[list=1\](.*?)\[\/list\]/gs, '$1')
+    .replace(/\[\*\](.*?)(?=\[\*\]|\[\/list\])/g, '• $1\n')
+    .replace(/\n+/g, '\n')
+    .trim();
+};
+
+// Legacy function for backward compatibility
+export const formatBBCode = bbcodeToHtml;
 
 // Add BB code formatting buttons to editor toolbar
 export const insertBBCode = (

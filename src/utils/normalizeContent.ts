@@ -1,9 +1,9 @@
 // src/utils/normalizeContent.ts
 
 /**
- * Приводит любое содержимое документа к строке для diff.
+ * Приводит любое содержимое документа к строке, сохраняя BB коды.
  * Поддержка:
- *  - строки
+ *  - строки (возвращаем как есть для сохранения BB кодов)
  *  - Quill Delta (ops)
  *  - JSON-объекты
  *  - fallback → String()
@@ -11,7 +11,7 @@
 export function normalizeContent(content: any): string {
   if (!content) return "";
 
-  // Если это уже строка
+  // Если это уже строка - возвращаем как есть (сохраняем BB коды)
   if (typeof content === "string") {
     return content;
   }

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bold, Italic, Underline, Type, Share, Save, ChevronDown, Strikethrough, Quote, Code, Download } from "lucide-react";
-import { formatBBCode, insertBBCode } from "@/utils/formatBBCode";
+import { bbcodeToHtml, insertBBCode } from "@/utils/formatBBCode";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentEditorProps {
@@ -88,21 +88,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   const handleExportDocx = async () => {
     try {
-      const { Document, Packer, Paragraph, TextRun } = await import('docx');
+      const htmlToDocx = (await import('html-to-docx')).default;
       
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: content.split('\n').map(line => 
-            new Paragraph({
-              children: [new TextRun(line || ' ')],
-            })
-          ),
-        }],
+      // Convert BBCode to HTML first
+      const htmlContent = bbcodeToHtml(content);
+      
+      // Convert HTML to DOCX
+      const docxBlob = await htmlToDocx(htmlContent, null, {
+        table: { row: { cantSplit: true } },
+        footer: true,
+        pageNumber: true,
       });
       
-      const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(docxBlob);
       const a = document.createElement('a');
       a.href = url;
       const fileName = selectedVersion 
@@ -288,7 +286,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             </div>
             <div 
               className="whitespace-pre-wrap text-base leading-relaxed prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: formatBBCode(content) || "Loading document content..." }}
+              dangerouslySetInnerHTML={{ __html: bbcodeToHtml(content) || "Loading document content..." }}
             />
           </div>
         )}
