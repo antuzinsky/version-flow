@@ -61,8 +61,8 @@ function DiffChunk({
         : "bg-green-100";
   }
 
-  const showControls =
-    (side === "left" && isRemoved) || (side === "right" && isAdded);
+  // Показываем кнопки только справа для добавлений
+  const showControls = side === "right" && isAdded;
 
   return (
     <span 
@@ -71,21 +71,21 @@ function DiffChunk({
     >
       {change.content}
       {showControls && (
-        <span className="ml-1 select-none">
+        <span className="ml-2 select-none">
           {change.status !== "accepted" && (
             <button
-              className="inline-block text-[11px] px-1 py-[1px] rounded bg-emerald-600 text-white hover:bg-emerald-700"
+              className="inline-block text-sm px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
               onClick={onAccept}
-              title="Принять изменение"
+              title="Принять новую версию"
             >
               ✓
             </button>
           )}
           {change.status !== "rejected" && (
             <button
-              className="inline-block text-[11px] px-1 py-[1px] rounded bg-rose-600 text-white hover:bg-rose-700 ml-1"
+              className="inline-block text-sm px-2 py-1 rounded bg-rose-600 text-white hover:bg-rose-700 ml-1"
               onClick={onReject}
-              title="Отклонить изменение"
+              title="Оставить старую версию"
             >
               ✕
             </button>

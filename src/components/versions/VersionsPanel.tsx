@@ -113,30 +113,29 @@ export const VersionsPanel: React.FC<VersionsPanelProps> = ({
     };
   };
 
-  // Single version viewing
+  // Single version viewing - center layout
   if (viewingVersion) {
     return (
-      <div className="w-80 border-l border-border bg-sidebar flex flex-col h-full">
-        <div className="p-4 border-b border-sidebar-border">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-sidebar-foreground">
+      <div className="w-full h-full">
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-foreground">
               Version v{viewingVersion.version_number}
-            </h2>
+            </h1>
             <Button 
-              variant="outline" 
-              size="sm"
+              variant="outline"
               onClick={() => setViewingVersion(null)}
             >
-              ← Back
+              ← Back to Versions
             </Button>
           </div>
-          <div className="text-xs text-sidebar-foreground/70 space-y-1">
+          <div className="mb-4 text-sm text-muted-foreground space-y-1">
             <div>Created: {new Date(viewingVersion.created_at).toLocaleDateString()}</div>
             <div>By: {viewingVersion.created_by || 'Unknown'}</div>
           </div>
-        </div>
-        <div className="flex-1 overflow-auto p-4">
-          <VersionContentLoader version={viewingVersion} />
+          <div className="bg-background border rounded-lg p-6">
+            <VersionContentLoader version={viewingVersion} />
+          </div>
         </div>
       </div>
     );
