@@ -168,7 +168,7 @@ const Index: React.FC = () => {
     // 1) Insert document row (without project requirement)
     const { data: docInsert, error: docErr } = await supabase
       .from("documents")
-      .insert({ title: docTitle.trim() })
+      .insert({ title: docTitle.trim(), project_id: null as unknown as string } as any)
       .select("*")
       .maybeSingle();
 
@@ -214,6 +214,7 @@ const Index: React.FC = () => {
 
     setDocTitle("");
     setDocFile(null);
+    setUploadModalOpen(false);
     toast({ title: "Document uploaded" });
     refreshDocuments();
   };
