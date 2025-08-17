@@ -21,21 +21,24 @@ export default function DocumentComparison({
     version2: version2?.content,
   });
 
-  // хук для вычисления diff
-  const {
-    changes,
-    applyChange,
-    applyAll,
-    rejectAll,
-    resetAll,
-    stats,
-  } = useDocumentDiff(
-    normalizeContent(version1?.content || ""),
-    normalizeContent(version2?.content || "")
-  );
+// хук для вычисления diff
+const {
+  changes,
+  applyChange,
+  applyAll,
+  rejectAll,
+  resetAll,
+  stats,
+} = useDocumentDiff(
+  normalizeContent(version1?.content || ""),
+  normalizeContent(version2?.content || "")
+);
 
-  console.log("Generated changes:", changes);
-  console.log("Stats:", stats);
+// вот тут уже отдельно можно логать
+console.log("version1.content type:", typeof version1?.content, version1?.content);
+console.log("version2.content type:", typeof version2?.content, version2?.content);
+console.log("Generated changes:", changes);
+console.log("Stats:", stats);
 
   return (
     <div className="flex h-full">
