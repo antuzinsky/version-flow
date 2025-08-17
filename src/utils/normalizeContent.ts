@@ -1,21 +1,34 @@
 // src/utils/normalizeContent.ts
 
 /**
- * Универсальная функция для приведения контента документа к строке,
- * чтобы diff-алгоритм мог с ним работать.
+ * Приводит любое содержимое документа к строке для diff.
+ * Поддержка:
+ *  - строки
+ *  - Quill Delta (ops)
+ *  - JSON-объекты
+ *  - fallback → String()
  */
 export function normalizeContent(content: any): string {
   if (!content) return "";
 
-  // Если уже строка — отдаем как есть
-  if (typeof content === "string") return content;
-
-  // Если это объект (например JSON от редактора)
-  try {
-    // Временно превращаем в форматированный JSON
-    return JSON.stringify(content, null, 2);
-  } catch (e) {
-    // fallback на простое приведение
-    return String(content);
+  // Если это уже строка
+  if (typeof content === "string") {
+    return content;
   }
+
+  // Если это объект с Quill Delta (content.ops)
+  if (typeof content === "object") {
+    try {
+      if (Array.isArray(content.ops)) {
+        return content.ops.map((op: any) => op.insert || "").join("");
+      }
+      return JSON.stringify(content); // Fallback для произвольных объектов
+    } catch (e) {
+      console.warn("normalizeContent: error parsing object", e);
+      return String(content);
+    }
+  }
+
+  // Всё остальное → строка
+  return String(content);
 }
