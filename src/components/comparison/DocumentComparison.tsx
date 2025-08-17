@@ -18,11 +18,6 @@ interface Props {
   onBack?: () => void;
 }
 
-/**
- * Рендер одного кусочка дифа в колонке.
- * Для левой колонки показываем только removed/null.
- * Для правой — только added/null.
- */
 function DiffChunk({
   change,
   side, // 'left' | 'right'
@@ -38,18 +33,14 @@ function DiffChunk({
   const isAdded = change.type === "added";
   const isNeutral = change.type === null;
 
-  // Лево: показываем нейтральное + удалённое
   if (side === "left" && !(isNeutral || isRemoved)) return null;
-  // Право: показываем нейтральное + добавленное
   if (side === "right" && !(isNeutral || isAdded)) return null;
 
-  // Стиль по статусу и типу
   const base = "px-0.5 rounded";
   let cls = "";
   if (isNeutral) {
     cls = "";
   } else if (isRemoved && side === "left") {
-    // удалённое (слева)
     cls =
       change.status === "accepted"
         ? "bg-red-50 line-through opacity-70"
@@ -57,7 +48,6 @@ function DiffChunk({
         ? "bg-transparent opacity-40"
         : "bg-red-100";
   } else if (isAdded && side === "right") {
-    // добавленное (справа)
     cls =
       change.status === "accepted"
         ? "bg-green-50"
@@ -98,23 +88,16 @@ function DiffChunk({
   );
 }
 
-export default function DocumentComparison({
-  version1,
-  version2,
-  onBack,
-}: Props) {
-  const {
-    changes,
-    applyChange,
-    applyAll,
-    rejectAll,
-    resetAll,
-    stats,
-  } = useDocumentDiff(version1.content, version2.content);
+export default function DocumentComparison({ version1, version2, onBack }: Props) {
+  const { changes, applyChange, applyAll, rejectAll, resetAll, stats } =
+    useDocumentDiff(version1.content, version2.content);
+
+  // если вдруг одна сторона реально пустая — покажем заметку, чтобы не было «весь документ красный»
+  const oneSideEmpty =
+    !version1.content?.trim() || !version2.content?.trim();
 
   return (
     <div className="grid grid-cols-[1fr_320px] gap-6 h-full">
-      {/* Центр: ДВЕ колонки с текстом (без объединённого вида) */}
       <main className="p-4 overflow-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold">
@@ -132,6 +115,13 @@ export default function DocumentComparison({
             </button>
           )}
         </div>
+
+        {oneSideEmpty && (
+          <div className="mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            Одна из версий не содержит сохранённого текста. Дифф может выглядеть
+            как «сплошное добавление/удаление». Проверьте сохранение контента версии.
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           {/* СТАРАЯ */}
@@ -190,7 +180,7 @@ export default function DocumentComparison({
         </div>
       </main>
 
-      {/* ПРАВЫЙ сайдбар: Одна панель изменений */}
+      {/* Правый сайдбар — одна панель */}
       <aside className="border-l bg-gray-50 p-4">
         <ChangesPanel
           changes={changes}
