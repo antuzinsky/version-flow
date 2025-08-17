@@ -363,12 +363,13 @@ const Index: React.FC = () => {
 
   return (
     <div className="h-screen flex bg-background">
-      <WorkspacePanel
-        documents={documents}
-        selectedDocumentId={selectedDocumentId}
-        onDocumentSelect={setSelectedDocumentId}
-        onUploadClick={() => setUploadModalOpen(true)}
-      />
+        <WorkspacePanel
+          documents={documents}
+          selectedDocumentId={selectedDocumentId}
+          onDocumentSelect={setSelectedDocumentId}
+          onUploadClick={() => setUploadModalOpen(true)}
+          onDocumentsChange={refreshDocuments}
+        />
       
       <DocumentEditor
         document={currentDocument}
@@ -390,22 +391,10 @@ const Index: React.FC = () => {
       <UploadModal
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
-        clients={clients}
-        projects={projects}
-        selectedClientId={selectedClientId}
-        selectedProjectId={selectedProjectId}
-        clientName={clientName}
-        projectName={projectName}
         docTitle={docTitle}
         docFile={docFile}
-        onClientNameChange={setClientName}
-        onProjectNameChange={setProjectName}
         onDocTitleChange={setDocTitle}
         onDocFileChange={setDocFile}
-        onClientSelect={setSelectedClientId}
-        onProjectSelect={setSelectedProjectId}
-        onCreateClient={createClient}
-        onCreateProject={createProject}
         onUploadDocument={uploadDocument}
       />
       

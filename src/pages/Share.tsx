@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import DocumentComparison from "@/components/comparison/DocumentComparison";
 import { normalizeContent } from "@/utils/normalizeContent";
+import { formatBBCode } from "@/utils/formatBBCode";
 
 interface ShareData {
   share: {
@@ -519,12 +520,12 @@ const Share: React.FC = () => {
                           </p>
                         </div>
                       ) : (
-                        <div
-                          className="whitespace-pre-wrap text-base leading-relaxed"
-                          dangerouslySetInnerHTML={{
-                            __html: currentContent || "This document appears to be empty.",
-                          }}
-                        />
+                         <div
+                           className="whitespace-pre-wrap text-base leading-relaxed"
+                           dangerouslySetInnerHTML={{
+                             __html: formatBBCode(currentContent) || "This document appears to be empty.",
+                           }}
+                         />
                       )}
                     </div>
                   </CardContent>

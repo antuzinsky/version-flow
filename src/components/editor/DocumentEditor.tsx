@@ -2,7 +2,8 @@ import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Bold, Italic, Underline, Type, Share, Save, ChevronDown } from "lucide-react";
+import { Bold, Italic, Underline, Type, Share, Save, ChevronDown, Strikethrough, Quote, Code } from "lucide-react";
+import { formatBBCode, insertBBCode } from "@/utils/formatBBCode";
 
 interface DocumentEditorProps {
   document?: any;
@@ -43,10 +44,29 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }, 0);
   };
 
-  const handleBold = () => insertFormatting('**', '**');
-  const handleItalic = () => insertFormatting('*', '*');
-  const handleUnderline = () => insertFormatting('<u>', '</u>');
+  const handleBold = () => insertBBCodeTag('b');
+  const handleItalic = () => insertBBCodeTag('i');
+  const handleUnderline = () => insertBBCodeTag('u');
+  const handleStrikethrough = () => insertBBCodeTag('s');
+  const handleQuote = () => insertBBCodeTag('quote');
+  const handleCode = () => insertBBCodeTag('code');
   const handleHeading = () => insertFormatting('# ', '');
+
+  const insertBBCodeTag = (tag: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    
+    const { newContent, newPosition } = insertBBCode(content, start, end, tag);
+    onContentChange(newContent);
+    
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
 
   const insertLineBreak = () => {
     const textarea = textareaRef.current;
@@ -146,9 +166,34 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             variant="ghost" 
             size="sm"
             onClick={handleUnderline}
-            title="Underline"
+            title="Underline [u]"
           >
             <Underline className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleStrikethrough}
+            title="Strikethrough [s]"
+          >
+            <Strikethrough className="h-4 w-4" />
+          </Button>
+          <div className="h-6 w-px bg-border mx-2" />
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleQuote}
+            title="Quote [quote]"
+          >
+            <Quote className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleCode}
+            title="Code [code]"
+          >
+            <Code className="h-4 w-4" />
           </Button>
           <div className="h-6 w-px bg-border mx-2" />
           <Button 
@@ -189,7 +234,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             </div>
             <div 
               className="whitespace-pre-wrap text-base leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: content || "Loading document content..." }}
+              dangerouslySetInnerHTML={{ __html: formatBBCode(content) || "Loading document content..." }}
             />
           </div>
         )}

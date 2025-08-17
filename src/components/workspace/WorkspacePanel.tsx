@@ -1,14 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, Palette } from "lucide-react";
+import { FileText, Upload, Palette, Edit, Trash2, MoreVertical } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface WorkspacePanelProps {
   documents: any[];
   selectedDocumentId?: string;
   onDocumentSelect: (documentId: string) => void;
   onUploadClick: () => void;
+  onDocumentsChange: () => void;
 }
 
 export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
@@ -16,13 +20,74 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   selectedDocumentId,
   onDocumentSelect,
   onUploadClick,
+  onDocumentsChange,
 }) => {
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [backgroundColor, setBackgroundColor] = React.useState("default");
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [backgroundColor, setBackgroundColor] = useState("default");
+  const [editingDocument, setEditingDocument] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
 
-  const filteredDocuments = documents.filter(doc => 
+  const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleRename = async (documentId: string) => {
+    if (!newTitle.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from("documents")
+        .update({ title: newTitle.trim() })
+        .eq("id", documentId);
+
+      if (error) throw error;
+      
+      onDocumentsChange();
+      setEditingDocument(null);
+      setNewTitle("");
+      toast({
+        title: "Document renamed",
+        description: "Document title updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to rename document: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (documentId: string) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("documents")
+        .delete()
+        .eq("id", documentId);
+
+      if (error) throw error;
+      
+      onDocumentsChange();
+      toast({
+        title: "Document deleted",
+        description: "Document removed successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error", 
+        description: "Failed to delete document: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startEditing = (document: any) => {
+    setEditingDocument(document.id);
+    setNewTitle(document.title);
+  };
 
   const getBackgroundClass = () => {
     switch (backgroundColor) {
@@ -71,22 +136,72 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             </div>
           ) : (
             filteredDocuments.map((doc) => (
-              <Button
+              <div
                 key={doc.id}
-                variant="ghost"
-                className={`w-full justify-start h-10 px-3 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                  selectedDocumentId === doc.id ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''
+                className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                  selectedDocumentId === doc.id 
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
+                    : 'hover:bg-sidebar-accent/50'
                 }`}
                 onClick={() => onDocumentSelect(doc.id)}
               >
-                <FileText className="h-4 w-4 mr-3 flex-shrink-0" />
-                <div className="flex flex-col items-start min-w-0 flex-1">
-                  <span className="truncate text-sm font-medium">{doc.title}</span>
-                  <span className="text-xs text-sidebar-foreground/60">
-                    {new Date(doc.created_at).toLocaleDateString()}
-                  </span>
+                <FileText className="h-4 w-4 flex-shrink-0 text-sidebar-foreground/60" />
+                <div className="flex-1 min-w-0">
+                  {editingDocument === doc.id ? (
+                    <Input
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRename(doc.id);
+                        if (e.key === 'Escape') {
+                          setEditingDocument(null);
+                          setNewTitle("");
+                        }
+                      }}
+                      onBlur={() => {
+                        setEditingDocument(null);
+                        setNewTitle("");
+                      }}
+                      autoFocus
+                      className="text-sm h-6 px-1"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <>
+                      <div className="truncate text-sm font-medium text-sidebar-foreground">{doc.title}</div>
+                      <div className="text-xs text-sidebar-foreground/60">
+                        {new Date(doc.created_at).toLocaleDateString()}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <MoreVertical className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      startEditing(doc);
+                    }}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(doc.id);
+                      }}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ))
           )}
         </div>
