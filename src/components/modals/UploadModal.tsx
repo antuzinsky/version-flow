@@ -2,6 +2,7 @@ import React from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -34,6 +35,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
+          <DialogDescription>
+            Add a new document by providing a title and selecting a Word file (.doc or .docx).
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
